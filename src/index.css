@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.wood-grain {
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      rgba(0, 0, 0, 0.03) 1px,
+      transparent 3px,
+      rgba(255, 255, 255, 0.02) 5px,
+      transparent 8px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      rgba(74, 47, 24, 0.15) 2px,
+      transparent 6px,
+      rgba(168, 115, 73, 0.08) 10px,
+      transparent 14px
+    );
+}
+
+.wood-grain-dark {
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      rgba(0, 0, 0, 0.08) 1px,
+      transparent 4px,
+      rgba(255, 255, 255, 0.03) 7px,
+      transparent 11px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      rgba(0, 0, 0, 0.12) 3px,
+      transparent 8px,
+      rgba(107, 68, 35, 0.1) 14px,
+      transparent 20px
+    );
+}
+
+.closet-interior {
+  background:
+    radial-gradient(ellipse at top, rgba(255, 240, 200, 0.15) 0%, transparent 60%),
+    linear-gradient(180deg, #3a2a1e 0%, #2a1d14 50%, #1f150e 100%);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(201, 169, 110, 0.3);
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 169, 110, 0.5);
+}
+
+.shelf-board {
+  background: linear-gradient(
+    180deg,
+    #8b6239 0%,
+    #a87349 30%,
+    #9a6638 70%,
+    #6b4423 100%
+  );
+  box-shadow:
+    0 -2px 6px rgba(0, 0, 0, 0.3),
+    0 4px 8px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+  border-radius: 2px;
+}
+
+.shelf-board::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    rgba(0, 0, 0, 0.06) 1px,
+    transparent 3px,
+    rgba(255, 255, 255, 0.04) 6px,
+    transparent 10px
+  );
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.shelf-wall {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 220, 160, 0.08) 0%, transparent 50%),
+    linear-gradient(180deg, #2a1d14 0%, #1f150e 100%);
+}
+
+.hanging-rod {
+  background: linear-gradient(
+    180deg,
+    #b8860b 0%,
+    #8b6914 50%,
+    #6b5210 100%
+  );
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+}
