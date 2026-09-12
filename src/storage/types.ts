@@ -1,10 +1,11 @@
-import type { Look, WardrobeCollection, WardrobeItem } from '@/types';
+import type { Look, LoftBox, WardrobeCollection, WardrobeItem } from '@/types';
 
 /** Persisted wardrobe snapshot — independent of UI/session state. */
 export interface WardrobeData {
   collections: WardrobeCollection[];
   items: WardrobeItem[];
   looks: Look[];
+  loftBoxes: LoftBox[];
   activeCollectionId: string;
 }
 

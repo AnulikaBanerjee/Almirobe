@@ -1,14 +1,20 @@
+import { DevFileStorageProvider } from '@/storage/devFileStorageProvider';
 import { LocalStorageProvider } from '@/storage/localStorageProvider';
 import type { StorageProviderKind, WardrobeStorageProvider } from '@/storage/types';
 
 /**
  * Single switch point for persistence backend.
- * To add cloud storage later:
- *   1. Implement WardrobeStorageProvider (e.g. SupabaseStorageProvider)
- *   2. Extend StorageProviderKind
- *   3. Add a case here — App/hooks stay unchanged
+ * In dev: file-backed storage (data/wardrobe-data.json) + localStorage mirror.
+ * In production build: localStorage until Supabase is wired.
  */
-export function createStorageProvider(kind: StorageProviderKind = 'local'): WardrobeStorageProvider {
+export function createStorageProvider(
+  kind: StorageProviderKind = 'local',
+  profileId: string = 'default'
+): WardrobeStorageProvider {
+  if (import.meta.env.DEV) {
+    return new DevFileStorageProvider(profileId);
+  }
+
   switch (kind) {
     case 'local':
       return new LocalStorageProvider();

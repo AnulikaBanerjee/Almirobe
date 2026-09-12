@@ -3,6 +3,8 @@ import { X, Trash2, Pencil, Heart } from 'lucide-react';
 import { getLookMemberIds } from '@/looks';
 import type { WardrobeItem, WardrobeCollection, Look } from '@/types';
 import { SEASON_LABELS } from '@/types';
+import ItemImage from '@/components/ItemImage';
+import ModalPortal from '@/components/ModalPortal';
 
 interface LookViewerModalProps {
   look: Look;
@@ -41,9 +43,9 @@ export default function LookViewerModal({
   const otherItems = lookItems.slice(1);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in" onClick={onClose}>
+    <ModalPortal onBackdropClick={onClose} zIndex={400} backdropClassName="bg-black/80 backdrop-blur-md">
       <div
-        className="bg-ink-800 border border-ink-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto custom-scrollbar animate-scale-in"
+        className="bg-ink-800 border border-ink-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[min(92vh,820px)] overflow-y-auto custom-scrollbar animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with look name */}
@@ -67,11 +69,7 @@ export default function LookViewerModal({
                 className="w-full flex gap-4 p-3 rounded-xl bg-ink-900/40 border border-ink-700/40 hover:border-wardrobe-accent-gold/40 transition-all text-left group"
               >
                 <div className="w-28 h-28 rounded-lg overflow-hidden border border-ink-700 flex-shrink-0">
-                  {primaryItem.imageData ? (
-                    <img src={primaryItem.imageData} alt={primaryItem.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full" style={{ backgroundColor: primaryItem.colorHex }} />
-                  )}
+                  <ItemImage item={primaryItem} alt={primaryItem.name} className="w-full h-full object-cover" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-base font-medium text-ink-100 group-hover:text-ink-50 transition-colors">{primaryItem.name}</h3>
@@ -109,11 +107,7 @@ export default function LookViewerModal({
                       className="group rounded-lg overflow-hidden border border-ink-700/40 hover:border-wardrobe-accent-gold/40 transition-all text-left"
                     >
                       <div className="aspect-square relative">
-                        {item.imageData ? (
-                          <img src={item.imageData} alt={item.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full" style={{ backgroundColor: item.colorHex }} />
-                        )}
+                        <ItemImage item={item} alt={item.name} className="w-full h-full object-cover" />
                       </div>
                       <div className="p-2 bg-ink-800">
                         <p className="text-xs text-ink-200 truncate">{item.name}</p>
@@ -172,6 +166,6 @@ export default function LookViewerModal({
           )}
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }

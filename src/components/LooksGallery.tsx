@@ -1,6 +1,7 @@
 import { Sparkles, Plus, ArrowLeft } from 'lucide-react';
 import { getLookMemberIds } from '@/looks';
 import type { WardrobeItem, WardrobeCollection, Look } from '@/types';
+import ItemImage from '@/components/ItemImage';
 
 interface LooksGalleryProps {
   looks: Look[];
@@ -52,14 +53,11 @@ function LookCard({ look, allItems, allCollections, onClick }: {
                   gridRow: lookItems.length === 1 ? 'span 2' : undefined,
                 }}
               >
-                {item.imageData ? (
-                  <img src={item.imageData} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                ) : (
-                  <div
-                    className="w-full h-full transition-transform group-hover:scale-105"
-                    style={{ backgroundColor: item.colorHex }}
-                  />
-                )}
+                <ItemImage
+                  item={item}
+                  alt={item.name}
+                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                />
                 {/* Gradient overlay for label readability */}
                 {idx === 0 && (
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />

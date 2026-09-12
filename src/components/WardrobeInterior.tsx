@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Search, Plus, Heart, X, Star, WashingMachine } from 'lucide-react';
-import type { WardrobeItem, WardrobeCollection, Season, Look } from '@/types';
+import { Search, Plus, Heart, X, Star, WashingMachine, Package } from 'lucide-react';
+import ItemDragOverlay from '@/components/itemDrag/ItemDragOverlay';
+import { useItemDrag } from '@/components/itemDrag/useItemDrag';
+import type { LoftBox, WardrobeItem, WardrobeCollection, Season, Look } from '@/types';
 import type { LookEditorContext } from '@/looks';
 import {
   ALL_SEASONS_FILTER_LABEL,
@@ -9,8 +11,11 @@ import {
   seasonFilterChipLabel,
   type SeasonFilterValue,
 } from '@/filters';
-import { SEASON_LABELS, SEASONS } from '@/types';
+import { markItemWornToday } from '@/reports/wearTracking';
+import { DEFAULT_SHELF_COUNT, SEASON_LABELS, SEASONS } from '@/types';
 import PhotoUpload from './PhotoUpload';
+import ModalPortal from './ModalPortal';
+import ItemImage from './ItemImage';
 import ItemDetailModal from './ItemDetailModal';
 import EditItemModal from './EditItemModal';
 import CreateLookModal from './CreateLookModal';
@@ -29,64 +34,68 @@ interface WardrobeInteriorProps {
   onSaveLook: (look: Look) => void;
   onDeleteLook: (lookId: string) => void;
   onToggleLaundry: (id: string) => void;
+  loftBoxes: LoftBox[];
+  onMoveToLoft: (itemIds: string[], boxId: string) => void;
+  onReturnFromLoft: (itemIds: string[]) => void;
+  onOpenLoft: () => void;
 }
 
-function ItemCard({ item, onToggleFavorite, onOpenDetail }: {
+function ItemCard({
+  item,
+  isDragging,
+  onToggleFavorite,
+  onItemPointerDown,
+  onItemPointerMove,
+  onItemPointerUp,
+  onItemPointerCancel,
+}: {
   item: WardrobeItem;
+  isDragging: boolean;
   onToggleFavorite: (id: string) => void;
-  onOpenDetail: (item: WardrobeItem) => void;
+  onItemPointerDown: (e: React.PointerEvent, item: WardrobeItem) => void;
+  onItemPointerMove: (e: React.PointerEvent) => void;
+  onItemPointerUp: (e: React.PointerEvent) => void;
+  onItemPointerCancel: (e: React.PointerEvent) => void;
 }) {
   return (
     <div
-      className="group relative flex flex-col items-center animate-fade-in-up cursor-pointer"
+      className={`group relative flex flex-col items-center animate-fade-in-up touch-none select-none ${
+        isDragging ? 'opacity-30 scale-95' : 'cursor-grab active:cursor-grabbing'
+      }`}
       style={{ animationDelay: '0.05s' }}
-      onClick={() => onOpenDetail(item)}
+      onPointerDown={(e) => onItemPointerDown(e, item)}
+      onPointerMove={onItemPointerMove}
+      onPointerUp={onItemPointerUp}
+      onPointerCancel={onItemPointerCancel}
     >
       <div className="relative w-full flex flex-col items-center">
-        {/* Hanger hook */}
         <div className="w-px h-2 bg-ink-600/60" />
-        {/* Hanger bar */}
         <div className="w-8 h-1 rounded-full bg-gradient-to-b from-amber-700/60 to-amber-900/60 shadow-sm" />
 
-        {/* Photo thumbnail or color swatch */}
-        {item.imageData ? (
-          <div className="w-full h-16 rounded-md mt-0.5 relative overflow-hidden border border-black/20 transition-transform group-hover:scale-[1.03]">
-            <img src={item.imageData} alt={item.name} className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-            {item.favorite && (
-              <Star className="absolute top-1 right-1 w-3 h-3 text-wardrobe-accent-gold fill-wardrobe-accent-gold drop-shadow" />
-            )}
-            {item.inLaundry && (
-              <WashingMachine className="absolute top-1 left-1 w-3 h-3 text-sky-400 drop-shadow" />
-            )}
-            <div className="absolute inset-0 bg-wardrobe-accent-gold/0 group-hover:bg-wardrobe-accent-gold/10 transition-colors" />
-          </div>
-        ) : (
-          <div
-            className="w-full h-16 rounded-md mt-0.5 relative overflow-hidden border border-black/20 transition-transform group-hover:scale-[1.03]"
-            style={{
-              background: `linear-gradient(145deg, ${item.colorHex} 0%, ${item.colorHex}cc 60%, ${item.colorHex}88 100%)`,
-            }}
-          >
-            <div className="absolute inset-0 opacity-20"
-              style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, rgba(0,0,0,0.12) 1px, transparent 3px)' }} />
-            {item.favorite && (
-              <Star className="absolute top-1 right-1 w-3 h-3 text-wardrobe-accent-gold fill-wardrobe-accent-gold drop-shadow" />
-            )}
-            {item.inLaundry && (
-              <WashingMachine className="absolute top-1 left-1 w-3 h-3 text-sky-400 drop-shadow" />
-            )}
-          </div>
-        )}
+        <div className="w-full h-16 rounded-md mt-0.5 relative overflow-hidden border border-black/20 transition-transform group-hover:scale-[1.03]">
+          <ItemImage item={item} alt={item.name} className="w-full h-full object-cover pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+          {item.favorite && (
+            <Star className="absolute top-1 right-1 w-3 h-3 text-wardrobe-accent-gold fill-wardrobe-accent-gold drop-shadow pointer-events-none" />
+          )}
+          {item.inLaundry && (
+            <WashingMachine className="absolute top-1 left-1 w-3 h-3 text-sky-400 drop-shadow pointer-events-none" />
+          )}
+          {item.markedForDonation && (
+            <Package className="absolute bottom-1 left-1 w-3 h-3 text-emerald-400 drop-shadow pointer-events-none" />
+          )}
+          <div className="absolute inset-0 bg-wardrobe-accent-gold/0 group-hover:bg-wardrobe-accent-gold/10 transition-colors pointer-events-none" />
+        </div>
       </div>
 
-      {/* Label below */}
-      <div className="mt-1 text-center w-full px-0.5">
+      <div className="mt-1 text-center w-full px-0.5 pointer-events-none">
         <p className="text-[10px] font-medium text-ink-200 leading-tight truncate group-hover:text-ink-100 transition-colors">{item.name}</p>
         <p className="text-[9px] text-ink-500 truncate">{item.brand}</p>
-        <div className="flex items-center justify-center gap-1.5 mt-0.5">
+        <div className="flex items-center justify-center gap-1.5 mt-0.5 pointer-events-auto">
           <span className="text-[8px] text-ink-600">{item.size}</span>
           <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(item.id); }}
             className={`transition-all hover:scale-125 ${item.favorite ? 'text-wardrobe-accent-rose' : 'text-ink-600 hover:text-ink-400'}`}
             aria-label="Toggle favorite"
@@ -99,11 +108,24 @@ function ItemCard({ item, onToggleFavorite, onOpenDetail }: {
   );
 }
 
-function Shelf({ label, items, onToggleFavorite, onOpenDetail }: {
+function Shelf({
+  label,
+  items,
+  draggingItemId,
+  onToggleFavorite,
+  onItemPointerDown,
+  onItemPointerMove,
+  onItemPointerUp,
+  onItemPointerCancel,
+}: {
   label: string;
   items: WardrobeItem[];
+  draggingItemId: string | null;
   onToggleFavorite: (id: string) => void;
-  onOpenDetail: (item: WardrobeItem) => void;
+  onItemPointerDown: (e: React.PointerEvent, item: WardrobeItem) => void;
+  onItemPointerMove: (e: React.PointerEvent) => void;
+  onItemPointerUp: (e: React.PointerEvent) => void;
+  onItemPointerCancel: (e: React.PointerEvent) => void;
 }) {
   if (items.length === 0) return null;
 
@@ -119,8 +141,12 @@ function Shelf({ label, items, onToggleFavorite, onOpenDetail }: {
             <ItemCard
               key={item.id}
               item={item}
+              isDragging={draggingItemId === item.id}
               onToggleFavorite={onToggleFavorite}
-              onOpenDetail={onOpenDetail}
+              onItemPointerDown={onItemPointerDown}
+              onItemPointerMove={onItemPointerMove}
+              onItemPointerUp={onItemPointerUp}
+              onItemPointerCancel={onItemPointerCancel}
             />
           ))}
         </div>
@@ -143,7 +169,12 @@ function AddItemModal({ collection, onClose, onAdd }: {
   const [size, setSize] = useState('');
   const [season, setSeason] = useState<Season>('all');
   const [notes, setNotes] = useState('');
-  const [imageData, setImageData] = useState<string | undefined>(undefined);
+  const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
+  const [purchasePrice, setPurchasePrice] = useState('');
+  const [purchaseDate, setPurchaseDate] = useState('');
+  const [shelfIndex, setShelfIndex] = useState(0);
+  const isShelfMode = (collection.displayMode ?? 'category') === 'shelf';
+  const shelfCount = collection.shelfCount ?? DEFAULT_SHELF_COUNT;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,9 +190,15 @@ function AddItemModal({ collection, onClose, onAdd }: {
       size: size.trim() || 'N/A',
       season,
       notes: notes.trim() || undefined,
-      imageData,
+      imageUrl,
+      purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
+      purchaseDate: purchaseDate ? new Date(purchaseDate).getTime() : undefined,
+      shelfIndex: isShelfMode ? shelfIndex : 0,
       favorite: false,
       inLaundry: false,
+      markedForDonation: false,
+      loftBoxId: null,
+      lentStatus: null,
       createdAt: Date.now(),
     });
     onClose();
@@ -171,9 +208,9 @@ function AddItemModal({ collection, onClose, onAdd }: {
   const labelClass = "block text-xs font-medium text-ink-300 mb-1.5 uppercase tracking-wider";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+    <ModalPortal onBackdropClick={onClose} zIndex={400}>
       <div
-        className="bg-ink-800 border border-ink-700 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar animate-scale-in"
+        className="bg-ink-800 border border-ink-700 rounded-2xl shadow-2xl w-full max-w-lg max-h-[min(90vh,820px)] overflow-y-auto custom-scrollbar animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-5 border-b border-ink-700">
@@ -184,7 +221,7 @@ function AddItemModal({ collection, onClose, onAdd }: {
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <PhotoUpload imageData={imageData} onChange={setImageData} label="Photo (optional)" />
+          <PhotoUpload imageUrl={imageUrl} onChange={setImageUrl} label="Photo (optional)" />
 
           <div>
             <label className={labelClass}>Item Name</label>
@@ -198,13 +235,28 @@ function AddItemModal({ collection, onClose, onAdd }: {
                 {collection.categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
             </div>
+            {(collection.enableSeasonFilter ?? true) ? (
+              <div>
+                <label className={labelClass}>Season</label>
+                <select value={season} onChange={(e) => setSeason(e.target.value as Season)} className={inputClass}>
+                  {SEASONS.map((s) => <option key={s} value={s}>{SEASON_LABELS[s]}</option>)}
+                </select>
+              </div>
+            ) : (
+              <div />
+            )}
+          </div>
+
+          {isShelfMode && (
             <div>
-              <label className={labelClass}>Season</label>
-              <select value={season} onChange={(e) => setSeason(e.target.value as Season)} className={inputClass}>
-                {SEASONS.map((s) => <option key={s} value={s}>{SEASON_LABELS[s]}</option>)}
+              <label className={labelClass}>Shelf</label>
+              <select value={shelfIndex} onChange={(e) => setShelfIndex(Number(e.target.value))} className={inputClass}>
+                {Array.from({ length: shelfCount }, (_, i) => (
+                  <option key={i} value={i}>Shelf {i + 1}</option>
+                ))}
               </select>
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -214,6 +266,30 @@ function AddItemModal({ collection, onClose, onAdd }: {
             <div>
               <label className={labelClass}>Size</label>
               <input value={size} onChange={(e) => setSize(e.target.value)} className={inputClass} placeholder="e.g. M" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Purchase price (optional)</label>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                value={purchasePrice}
+                onChange={(e) => setPurchasePrice(e.target.value)}
+                className={inputClass}
+                placeholder="e.g. 49"
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Purchase date (optional)</label>
+              <input
+                type="date"
+                value={purchaseDate}
+                onChange={(e) => setPurchaseDate(e.target.value)}
+                className={inputClass}
+              />
             </div>
           </div>
 
@@ -245,7 +321,7 @@ function AddItemModal({ collection, onClose, onAdd }: {
           </div>
         </form>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
 
@@ -275,6 +351,7 @@ export default function WardrobeInterior({
   collection, items, allItems, allCollections, looks,
   onAddItem, onEditItem, onToggleFavorite, onDeleteItem,
   onSaveLook, onDeleteLook, onToggleLaundry,
+  loftBoxes, onMoveToLoft, onReturnFromLoft, onOpenLoft,
 }: WardrobeInteriorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategoryId, setActiveCategoryId] = useState<string>('all');
@@ -288,6 +365,10 @@ export default function WardrobeInterior({
   const [lookEditor, setLookEditor] = useState<LookEditorContext | null>(null);
   const [viewingLook, setViewingLook] = useState<Look | null>(null);
 
+  const isShelfMode = (collection.displayMode ?? 'category') === 'shelf';
+  const shelfCount = collection.shelfCount ?? DEFAULT_SHELF_COUNT;
+  const showSeasonFilters = collection.enableSeasonFilter ?? true;
+
   const filteredItems = items.filter((item) => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -297,8 +378,12 @@ export default function WardrobeInterior({
         item.color.toLowerCase().includes(q);
       if (!matches) return false;
     }
-    if (activeCategoryId !== 'all' && item.categoryId !== activeCategoryId) return false;
-    if (!itemMatchesSeasonFilter(item, activeSeasonFilter)) return false;
+    if (isShelfMode) {
+      if (activeCategoryId !== 'all' && String(item.shelfIndex ?? 0) !== activeCategoryId) return false;
+    } else if (activeCategoryId !== 'all' && item.categoryId !== activeCategoryId) {
+      return false;
+    }
+    if (showSeasonFilters && !itemMatchesSeasonFilter(item, activeSeasonFilter)) return false;
     if (showFavoritesOnly && !item.favorite) return false;
     return true;
   });
@@ -306,9 +391,19 @@ export default function WardrobeInterior({
   const itemsByCategory = (categoryId: string) =>
     filteredItems.filter((item) => item.categoryId === categoryId);
 
-  const shelvesToShow = activeCategoryId === 'all'
-    ? collection.categories
-    : collection.categories.filter((c) => c.id === activeCategoryId);
+  const itemsByShelf = (shelfIdx: number) =>
+    filteredItems.filter((item) => (item.shelfIndex ?? 0) === shelfIdx);
+
+  const shelfRows = Array.from({ length: shelfCount }, (_, i) => ({
+    id: String(i),
+    label: `Shelf ${i + 1}`,
+  }));
+
+  const shelvesToShow = isShelfMode
+    ? (activeCategoryId === 'all' ? shelfRows : shelfRows.filter((s) => s.id === activeCategoryId))
+    : (activeCategoryId === 'all'
+      ? collection.categories
+      : collection.categories.filter((c) => c.id === activeCategoryId));
 
   const shownCount = filteredItems.length;
   const totalCount = items.length;
@@ -317,6 +412,30 @@ export default function WardrobeInterior({
   const currentDetailItem = detailItem
     ? allItems.find((i) => i.id === detailItem.id) ?? null
     : null;
+
+  const {
+    dragState,
+    draggingItemId,
+    setZoneRef,
+    onItemPointerDown,
+    onItemPointerMove,
+    onItemPointerUp,
+    onItemPointerCancel,
+  } = useItemDrag({
+    onOpenDetail: setDetailItem,
+    onSendToLaundry: (item) => {
+      if (!item.inLaundry) onToggleLaundry(item.id);
+    },
+    onMarkDonation: (item) => {
+      onEditItem({
+        ...item,
+        markedForDonation: true,
+        donationMarkedAt: Date.now(),
+        inLaundry: false,
+      });
+    },
+    onDelete: (item) => onDeleteItem(item.id),
+  });
 
   return (
     <div className="h-full flex flex-col shelf-wall">
@@ -355,36 +474,48 @@ export default function WardrobeInterior({
         <div className="space-y-1">
           <div className="flex flex-wrap gap-1">
             <FilterChip label="All" active={activeCategoryId === 'all'} onClick={() => setActiveCategoryId('all')} />
-            {collection.categories.map((cat) => (
-              <FilterChip
-                key={cat.id}
-                label={cat.label}
-                active={activeCategoryId === cat.id}
-                onClick={() => setActiveCategoryId(cat.id)}
-              />
-            ))}
+            {isShelfMode
+              ? shelfRows.map((shelf) => (
+                  <FilterChip
+                    key={shelf.id}
+                    label={shelf.label}
+                    active={activeCategoryId === shelf.id}
+                    onClick={() => setActiveCategoryId(shelf.id)}
+                  />
+                ))
+              : collection.categories.map((cat) => (
+                  <FilterChip
+                    key={cat.id}
+                    label={cat.label}
+                    active={activeCategoryId === cat.id}
+                    onClick={() => setActiveCategoryId(cat.id)}
+                  />
+                ))}
           </div>
-          <div className="flex flex-wrap gap-1">
-            <FilterChip
-              label={ALL_SEASONS_FILTER_LABEL}
-              active={activeSeasonFilter === null}
-              onClick={() => setActiveSeasonFilter(null)}
-              small
-            />
-            {SEASON_FILTER_OPTIONS.map((season) => (
+          {showSeasonFilters && (
+            <div className="flex flex-wrap gap-1">
               <FilterChip
-                key={season}
-                label={seasonFilterChipLabel(season)}
-                active={activeSeasonFilter === season}
-                onClick={() => setActiveSeasonFilter(season)}
+                label={ALL_SEASONS_FILTER_LABEL}
+                active={activeSeasonFilter === null}
+                onClick={() => setActiveSeasonFilter(null)}
                 small
               />
-            ))}
-          </div>
+              {SEASON_FILTER_OPTIONS.map((season) => (
+                <FilterChip
+                  key={season}
+                  label={seasonFilterChipLabel(season)}
+                  active={activeSeasonFilter === season}
+                  onClick={() => setActiveSeasonFilter(season)}
+                  small
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between text-[10px] text-ink-500 mt-1.5">
           <span>{shownCount} of {totalCount} pieces</span>
+          <span className="text-ink-600 hidden sm:inline">Drag to sort · tap to view</span>
         </div>
       </div>
 
@@ -402,16 +533,22 @@ export default function WardrobeInterior({
           </div>
         ) : (
           <div className="animate-fade-in">
-            {shelvesToShow.map((cat) => {
-              const catItems = itemsByCategory(cat.id);
-              if (catItems.length === 0) return null;
+            {shelvesToShow.map((row) => {
+              const rowItems = isShelfMode
+                ? itemsByShelf(Number(row.id))
+                : itemsByCategory(row.id);
+              if (rowItems.length === 0) return null;
               return (
                 <Shelf
-                  key={cat.id}
-                  label={cat.label}
-                  items={catItems}
+                  key={row.id}
+                  label={row.label}
+                  items={rowItems}
+                  draggingItemId={draggingItemId}
                   onToggleFavorite={onToggleFavorite}
-                  onOpenDetail={setDetailItem}
+                  onItemPointerDown={onItemPointerDown}
+                  onItemPointerMove={onItemPointerMove}
+                  onItemPointerUp={onItemPointerUp}
+                  onItemPointerCancel={onItemPointerCancel}
                 />
               );
             })}
@@ -420,6 +557,10 @@ export default function WardrobeInterior({
       </div>
 
       <div className="shelf-board relative h-2 mx-1 flex-shrink-0" />
+
+      {dragState && (
+        <ItemDragOverlay dragState={dragState} setZoneRef={setZoneRef} />
+      )}
 
       {showAddModal && (
         <AddItemModal
@@ -443,6 +584,18 @@ export default function WardrobeInterior({
           onViewLook={(look) => { setViewingLook(look); setDetailItem(null); }}
           onToggleFavorite={onToggleFavorite}
           onToggleLaundry={onToggleLaundry}
+          onMarkWorn={() => onEditItem(markItemWornToday(currentDetailItem))}
+          loftBoxes={loftBoxes}
+          loftBoxName={loftBoxes.find((b) => b.id === currentDetailItem.loftBoxId)?.name}
+          onMoveToLoft={(boxId) => {
+            onMoveToLoft([currentDetailItem.id], boxId);
+            setDetailItem(null);
+          }}
+          onReturnFromLoft={() => {
+            onReturnFromLoft([currentDetailItem.id]);
+            setDetailItem(null);
+          }}
+          onOpenLoft={onOpenLoft}
         />
       )}
 

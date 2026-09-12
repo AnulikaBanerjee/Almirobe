@@ -74,8 +74,25 @@ Copy `.env.example` to `.env` when customizing providers (optional for local dem
 |----------|---------|---------|
 | `VITE_AUTH_PROVIDER` | `demo` | Auth backend (`demo` today; `supabase` future) |
 | `VITE_STORAGE_PROVIDER` | `local` | Persistence backend (future) |
-| `VITE_SUPABASE_URL` | — | Supabase project URL (future) |
-| `VITE_SUPABASE_ANON_KEY` | — | Supabase anon key (future) |
+| `VITE_IMAGE_PROVIDER` | `auto` | Photo storage: `local-disk`, `indexeddb`, `supabase`, or `auto` |
+| `VITE_SUPABASE_URL` | — | Supabase project URL (for cloud photos) |
+| `VITE_SUPABASE_ANON_KEY` | — | Supabase anon key |
+
+### Photo storage (persists across restarts)
+
+| Mode | When | Where photos live |
+|------|------|-------------------|
+| **local-disk** (default in dev) | `npm run dev` | `data/uploads/` on disk, served at `/uploads/...` |
+
+Wardrobe data in dev is saved to **`data/wardrobe-data.json`** (not just browser localStorage), so it survives refresh and server restarts. Use **http://localhost:5173** only — multiple dev servers on different ports each had separate browser storage (this is now prevented with `strictPort`).
+| **indexeddb** | Production build without Supabase | Browser IndexedDB |
+| **supabase** | `VITE_SUPABASE_URL` + key set | Supabase Storage bucket `wardrobe-images` |
+
+To use Supabase Storage:
+
+1. Create a Supabase project and a **public** bucket named `wardrobe-images`.
+2. Copy `.env.example` → `.env` and set `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_IMAGE_PROVIDER=supabase`.
+3. `npm run dev` — uploads go to Supabase instead of the local folder.
 
 ## Auth architecture (swappable)
 
@@ -112,6 +129,14 @@ src/storage/
 ```
 
 Saved key: `my-wardrobe-data-v1` (collections, items, looks, activeCollectionId).
+
+## Recent features
+
+- **First-time onboarding** — after welcome animation: “Book Professional Help” (disabled) or “Setup Wardrobe Yourself”
+- **Wardrobe layout** — per wardrobe: display by **category** (tops, bottoms) or **shelf-wise** (Shelf 1, 2, …)
+- **Optional season filters** — checkbox when creating/editing a wardrobe
+- **Lent & Borrowed** tab — track items lent out or borrowed
+- **App menu** (gold icon) — account details, plus placeholder entries for professional help, donation pickup, reports
 
 ## Fix plan (sequential)
 

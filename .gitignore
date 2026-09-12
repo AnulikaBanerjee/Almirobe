@@ -21,3 +21,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+data/uploads/*
+!data/uploads/.gitkeep
+data/wardrobe-data*.json

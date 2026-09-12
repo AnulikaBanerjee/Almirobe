@@ -3,6 +3,8 @@ import { ArrowLeft, WashingMachine, RotateCcw, Droplets } from 'lucide-react';
 import type { WardrobeItem, WardrobeCollection } from '@/types';
 import { SEASON_LABELS } from '@/types';
 import { stableRange } from '@/utils/stableHash';
+import ItemImage from '@/components/ItemImage';
+import { getItemImageRef } from '@/images/itemImage';
 
 interface LaundryViewProps {
   allItems: WardrobeItem[];
@@ -125,18 +127,17 @@ function DrapedCloth({ item, index, total }: { item: WardrobeItem; index: number
       }}
     >
       <div
-        className="rounded-t-lg rounded-b shadow-lg border border-black/20"
+        className="rounded-t-lg rounded-b shadow-lg border border-black/20 overflow-hidden relative"
         style={{
           height: `${28 + (index % 2) * 6}px`,
           backgroundColor: item.colorHex,
-          backgroundImage: item.imageData
-            ? `url(${item.imageData})`
+          backgroundImage: getItemImageRef(item)?.startsWith('data:') || getItemImageRef(item)?.startsWith('/uploads/')
+            ? `url(${getItemImageRef(item)})`
             : `linear-gradient(180deg, ${item.colorHex}, ${item.colorHex}cc)`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
       >
-        {/* Fabric fold highlight */}
         <div className="w-full h-full rounded-t-lg rounded-b bg-gradient-to-b from-white/15 via-transparent to-black/20" />
       </div>
     </div>
@@ -310,11 +311,7 @@ export default function LaundryView({
                 }}
               >
                 <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-ink-700/50 shadow-2xl">
-                  {item.imageData ? (
-                    <img src={item.imageData} alt={item.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full" style={{ backgroundColor: item.colorHex }} />
-                  )}
+                  <ItemImage item={item} alt={item.name} className="w-full h-full object-cover" />
                 </div>
               </div>
             ))}
@@ -345,11 +342,7 @@ export default function LaundryView({
                         className="flex items-center gap-3 p-3 rounded-xl bg-ink-800/60 border border-ink-700/40 hover:border-ink-600 transition-all"
                       >
                         <div className="w-12 h-12 rounded-lg overflow-hidden border border-ink-700 flex-shrink-0">
-                          {item.imageData ? (
-                            <img src={item.imageData} alt={item.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full" style={{ backgroundColor: item.colorHex }} />
-                          )}
+                          <ItemImage item={item} alt={item.name} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-ink-100 truncate">{item.name}</p>

@@ -30,14 +30,15 @@ export class DemoAuthProvider implements AuthProvider {
 
   async signInWithGoogle(): Promise<AuthUser> {
     await delay(DEMO_SIGN_IN_DELAY_MS);
-    return buildDemoUser(null);
+    return buildDemoUser('Me', 'me@demo.local');
   }
 
   async signInWithPhone(phone: string): Promise<AuthUser> {
     await delay(DEMO_SIGN_IN_DELAY_MS);
     const digits = phone.replace(/\D/g, '');
-    const displayName = digits.length >= 4 ? `Guest •••${digits.slice(-4)}` : null;
-    return buildDemoUser(displayName);
+    const displayName = digits.length >= 4 ? `Guest •••${digits.slice(-4)}` : 'Me';
+    const email = digits ? `phone-${digits}@demo.local` : 'phone@demo.local';
+    return buildDemoUser(displayName, email);
   }
 
   async signOut(): Promise<void> {

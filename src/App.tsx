@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Sparkles, Layers, DoorOpen, WashingMachine, LogOut, Pencil } from 'lucide-react';
-import type { WardrobeItem, WardrobeCollection, Look } from '@/types';
+import { Sparkles, DoorOpen, WashingMachine, ArrowRightLeft, Pencil } from 'lucide-react';
+import type { LoftBox, WardrobeItem, WardrobeCollection, Look } from '@/types';
 import { createStorageProvider, useWardrobeData } from '@/storage';
 import { createAuthProvider, type AuthUser } from '@/auth';
 import {
@@ -23,16 +23,31 @@ import LaundryView from '@/components/LaundryView';
 import LoginScreen from '@/components/LoginScreen';
 import DemoModeBanner from '@/components/DemoModeBanner';
 import WelcomeScreen from '@/components/WelcomeScreen';
-
-type View = 'wardrobe' | 'looks' | 'laundry';
+import OnboardingModal from '@/components/OnboardingModal';
+import ModalPortal from '@/components/ModalPortal';
+import AppMenu from '@/components/AppMenu';
+import LentBorrowedView from '@/components/LentBorrowedView';
+import AccountPage from '@/components/pages/AccountPage';
+import AccountHistoryPage from '@/components/pages/AccountHistoryPage';
+import PurchaseReportPage from '@/components/pages/PurchaseReportPage';
+import DeclutterReportPage from '@/components/pages/DeclutterReportPage';
+import DonationBoxPage from '@/components/pages/DonationBoxPage';
+import LoftPage from '@/components/pages/LoftPage';
+import ItemImage from '@/components/ItemImage';
+import { addActivity, ensureProfilesForUser } from '@/menu/menuStorage';
+import { markItemWornToday } from '@/reports/wearTracking';
+import { hasCompletedOnboarding, markOnboardingComplete } from '@/userPreferences';
+import type { AppView } from '@/navigation';
 type WardrobeFormState =
   | { mode: 'create' }
   | { mode: 'edit'; collectionId: string }
   | null;
 
 function App() {
-  const storageProvider = useMemo(() => createStorageProvider('local'), []);
   const authProvider = useMemo(() => createAuthProvider(), []);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const profileId = user?.id ?? '__guest__';
+  const storageProvider = useMemo(() => createStorageProvider('local', profileId), [profileId]);
   const {
     collections,
     items,
@@ -44,12 +59,14 @@ function App() {
     setCollections,
     setItems,
     setLooks,
+    loftBoxes,
+    setLoftBoxes,
   } = useWardrobeData(storageProvider);
 
-  const [user, setUser] = useState<AuthUser | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [wardrobeForm, setWardrobeForm] = useState<WardrobeFormState>(null);
-  const [view, setView] = useState<View>('wardrobe');
+  const [view, setView] = useState<AppView>('wardrobe');
 
   // Look-related modal state (managed at App level so gallery and wardrobe can share)
   const [viewingLook, setViewingLook] = useState<Look | null>(null);
@@ -66,21 +83,27 @@ function App() {
       : undefined;
 
   const collectionItems = useMemo(
-    () => items.filter((item) => item.collectionId === activeCollectionId),
+    () =>
+      items.filter(
+        (item) => item.collectionId === activeCollectionId && !item.loftBoxId
+      ),
     [items, activeCollectionId]
   );
 
   const itemCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const collection of collections) {
-      counts[collection.id] = items.filter((item) => item.collectionId === collection.id).length;
+      counts[collection.id] = items.filter(
+        (item) => item.collectionId === collection.id && !item.loftBoxId
+      ).length;
     }
     return counts;
   }, [collections, items]);
 
-  const totalItems = items.length;
+  const totalItems = items.filter((item) => !item.loftBoxId).length;
   const totalFavorites = items.filter((i) => i.favorite).length;
   const laundryCount = items.filter((i) => i.inLaundry).length;
+  const lentCount = items.filter((i) => i.lentStatus).length;
   const ActiveIcon = getWardrobeIcon(activeCollection.icon);
 
   const detailItem = detailItemId ? items.find((i) => i.id === detailItemId) ?? null : null;
@@ -101,6 +124,7 @@ function App() {
       <LoginScreen
         authProvider={authProvider}
         onAuthenticated={(authenticatedUser) => {
+          ensureProfilesForUser(authenticatedUser);
           setUser(authenticatedUser);
           setShowWelcome(true);
         }}
@@ -110,17 +134,35 @@ function App() {
 
   // Show welcome animation after login
   if (showWelcome) {
-    return <WelcomeScreen userName={user.displayName} onDone={() => setShowWelcome(false)} />;
+    return (
+      <WelcomeScreen
+        userName={user.displayName}
+        onDone={() => {
+          setShowWelcome(false);
+          setShowOnboarding(!hasCompletedOnboarding(user.id));
+        }}
+      />
+    );
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-ink-900 flex items-center justify-center text-ink-300">
-        <div className="flex items-center gap-3 text-sm">
-          <span className="w-5 h-5 border-2 border-ink-600 border-t-wardrobe-accent-gold rounded-full animate-spin" />
-          Opening your wardrobe...
+      <>
+        <div className="min-h-screen bg-ink-900 flex items-center justify-center text-ink-300">
+          <div className="flex items-center gap-3 text-sm">
+            <span className="w-5 h-5 border-2 border-ink-600 border-t-wardrobe-accent-gold rounded-full animate-spin" />
+            Opening your wardrobe...
+          </div>
         </div>
-      </div>
+        {showOnboarding && (
+          <OnboardingModal
+            onSetupSelf={() => {
+              markOnboardingComplete(user.id);
+              setShowOnboarding(false);
+            }}
+          />
+        )}
+      </>
     );
   }
 
@@ -128,6 +170,7 @@ function App() {
     void authProvider.signOut();
     setUser(null);
     setShowWelcome(false);
+    setShowOnboarding(false);
     setView('wardrobe');
   };
 
@@ -184,9 +227,89 @@ function App() {
     setActiveCollectionId(newId);
   };
 
+  const handleClearLent = (id: string) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? { ...item, lentStatus: null, lentParty: undefined, lentNotes: undefined, lentDate: undefined }
+          : item
+      )
+    );
+  };
+
+  const handleReturnFromDonation = (itemIds: string[]) => {
+    if (itemIds.length === 0) return;
+    setItems((prev) =>
+      prev.map((item) =>
+        itemIds.includes(item.id)
+          ? { ...item, markedForDonation: false, donationMarkedAt: undefined }
+          : item
+      )
+    );
+  };
+
+  const handleCompleteDonation = (itemIds: string[]) => {
+    if (itemIds.length === 0) return;
+    setItems((prev) => prev.filter((item) => !itemIds.includes(item.id)));
+    setLooks((prev) => itemIds.reduce((acc, id) => removeItemFromLooks(acc, id), prev));
+    addActivity(
+      user!.id,
+      `Donated ${itemIds.length} piece${itemIds.length === 1 ? '' : 's'}`,
+      'Removed from wardrobe after donation'
+    );
+  };
+
+  const packItemForLoft = (item: WardrobeItem, boxId: string): WardrobeItem => ({
+    ...item,
+    loftBoxId: boxId,
+    inLaundry: false,
+    markedForDonation: false,
+    donationMarkedAt: undefined,
+  });
+
+  const handleMoveToLoft = (itemIds: string[], boxId: string) => {
+    if (itemIds.length === 0) return;
+    setItems((prev) =>
+      prev.map((item) =>
+        itemIds.includes(item.id) ? packItemForLoft(item, boxId) : item
+      )
+    );
+  };
+
+  const handleReturnFromLoft = (itemIds: string[]) => {
+    if (itemIds.length === 0) return;
+    setItems((prev) =>
+      prev.map((item) =>
+        itemIds.includes(item.id) ? { ...item, loftBoxId: null } : item
+      )
+    );
+  };
+
+  const handleSaveLoftBox = (box: LoftBox) => {
+    setLoftBoxes((prev) => {
+      const exists = prev.some((b) => b.id === box.id);
+      if (exists) return prev.map((b) => (b.id === box.id ? box : b));
+      return [...prev, box];
+    });
+  };
+
+  const handleDeleteLoftBox = (boxId: string) => {
+    setItems((prev) =>
+      prev.map((item) => (item.loftBoxId === boxId ? { ...item, loftBoxId: null } : item))
+    );
+    setLoftBoxes((prev) => prev.filter((b) => b.id !== boxId));
+  };
+
   const handleUpdateCollection = (
     collectionId: string,
-    input: { name: string; icon: string; categoryDrafts: CategoryDraft[] }
+    input: {
+      name: string;
+      icon: string;
+      categoryDrafts: CategoryDraft[];
+      displayMode: 'category' | 'shelf';
+      shelfCount: number;
+      enableSeasonFilter: boolean;
+    }
   ) => {
     const existing = collections.find((c) => c.id === collectionId);
     if (!existing) return;
@@ -225,11 +348,17 @@ function App() {
       <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-wardrobe-accent-rose/5 rounded-full blur-[100px] pointer-events-none" />
 
       {/* Header */}
-      <header className="relative z-10 px-6 py-5 flex items-center justify-between border-b border-ink-700/40 backdrop-blur-sm">
+      <header className="relative z-30 px-6 py-5 flex items-center justify-between border-b border-ink-700/40 backdrop-blur-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-wardrobe-accent-gold to-amber-700 flex items-center justify-center shadow-lg shadow-wardrobe-accent-gold/20">
-              <Layers className="w-5 h-5 text-ink-900" />
-            </div>
+            <AppMenu
+              user={user}
+              onNavigate={setView}
+              onSwitchProfile={(profile) => {
+                setUser(profile);
+                setView('wardrobe');
+                setShowOnboarding(!hasCompletedOnboarding(profile.id));
+              }}
+            />
             <div>
               <h1 className="text-xl font-serif font-semibold text-ink-50 tracking-wide">My Wardrobe</h1>
               <p className="text-xs text-ink-400">{user.displayName ? `Welcome, ${user.displayName}` : 'Your personal collection'}</p>
@@ -286,6 +415,24 @@ function App() {
                 </span>
               )}
             </button>
+            <button
+              onClick={() => setView('lent')}
+              className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all ${
+                view === 'lent'
+                  ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white'
+                  : 'text-ink-400 hover:text-ink-200'
+              }`}
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Lent</span>
+              {lentCount > 0 && (
+                <span className={`text-[10px] px-1.5 rounded-full ${
+                  view === 'lent' ? 'bg-white/20 text-white' : 'bg-ink-700/50 text-ink-300'
+                }`}>
+                  {lentCount}
+                </span>
+              )}
+            </button>
           </div>
 
           {/* Stats — hidden on small screens */}
@@ -299,15 +446,6 @@ function App() {
             </span>
           </div>
 
-          {/* Sign out */}
-          <button
-            onClick={handleSignOut}
-            className="w-9 h-9 rounded-full border border-ink-700/40 bg-ink-800/60 text-ink-400 hover:text-ink-100 hover:border-ink-600 transition-all flex items-center justify-center"
-            aria-label="Sign out"
-            title="Sign out"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
         </div>
       </header>
 
@@ -363,6 +501,10 @@ function App() {
               onSaveLook={handleSaveLook}
               onDeleteLook={handleDeleteLook}
               onToggleLaundry={handleToggleLaundry}
+              loftBoxes={loftBoxes}
+              onMoveToLoft={handleMoveToLoft}
+              onReturnFromLoft={handleReturnFromLoft}
+              onOpenLoft={() => setView('the-loft')}
             />
           </>
         ) : view === 'looks' ? (
@@ -374,12 +516,77 @@ function App() {
             onCreateLook={() => setPickingPrimaryItem(true)}
             onBack={() => setView('wardrobe')}
           />
-        ) : (
+        ) : view === 'laundry' ? (
           <LaundryView
             allItems={items}
             allCollections={collections}
             onToggleLaundry={handleToggleLaundry}
             onBack={() => setView('wardrobe')}
+          />
+        ) : view === 'lent' ? (
+          <LentBorrowedView
+            allItems={items}
+            allCollections={collections}
+            onUpdateItem={handleEditItem}
+            onClearLent={handleClearLent}
+            onBack={() => setView('wardrobe')}
+          />
+        ) : view === 'account' ? (
+          <AccountPage
+            user={user}
+            items={items}
+            collections={collections}
+            onBack={() => setView('wardrobe')}
+            onUpdateUser={setUser}
+            onSignOut={handleSignOut}
+          />
+        ) : view === 'account-history' ? (
+          <AccountHistoryPage user={user} onBack={() => setView('wardrobe')} />
+        ) : view === 'purchase-report' ? (
+          <PurchaseReportPage
+            items={items}
+            collections={collections}
+            onBack={() => setView('wardrobe')}
+          />
+        ) : view === 'donation-box' ? (
+          <DonationBoxPage
+            items={items}
+            collections={collections}
+            onBack={() => setView('wardrobe')}
+            onReturnToWardrobe={handleReturnFromDonation}
+            onCompleteDonation={handleCompleteDonation}
+          />
+        ) : view === 'the-loft' ? (
+          <LoftPage
+            loftBoxes={loftBoxes}
+            items={items}
+            collections={collections}
+            looks={looks}
+            onBack={() => setView('wardrobe')}
+            onSaveBox={handleSaveLoftBox}
+            onDeleteBox={handleDeleteLoftBox}
+            onMoveToLoft={handleMoveToLoft}
+            onReturnFromLoft={handleReturnFromLoft}
+            onEditItem={handleEditItem}
+            onDeleteItem={handleDeleteItem}
+            onToggleFavorite={handleToggleFavorite}
+            onToggleLaundry={handleToggleLaundry}
+            onCreateLook={(item) => {
+              setLookEditor({ primaryItem: item });
+              setView('wardrobe');
+            }}
+            onViewLook={(look) => {
+              setViewingLook(look);
+              setView('looks');
+            }}
+          />
+        ) : (
+          <DeclutterReportPage
+            items={items}
+            collections={collections}
+            onBack={() => setView('wardrobe')}
+            onKeep={(item) => handleEditItem(markItemWornToday(item))}
+            onThrowAway={handleDeleteItem}
           />
         )}
       </main>
@@ -390,6 +597,14 @@ function App() {
       </footer>
 
       {/* Modals */}
+      {showOnboarding && (
+        <OnboardingModal
+          onSetupSelf={() => {
+            markOnboardingComplete(user.id);
+            setShowOnboarding(false);
+          }}
+        />
+      )}
       {wardrobeForm && (
         <WardrobeFormModal
           key={wardrobeForm.mode === 'edit' ? wardrobeForm.collectionId : 'create'}
@@ -438,6 +653,21 @@ function App() {
           onViewLook={(look) => { setViewingLook(look); closeItemDetail(); }}
           onToggleFavorite={handleToggleFavorite}
           onToggleLaundry={handleToggleLaundry}
+          onMarkWorn={() => handleEditItem(markItemWornToday(detailItem))}
+          loftBoxes={loftBoxes}
+          loftBoxName={loftBoxes.find((b) => b.id === detailItem.loftBoxId)?.name}
+          onMoveToLoft={(boxId) => {
+            handleMoveToLoft([detailItem.id], boxId);
+            closeItemDetail();
+          }}
+          onReturnFromLoft={() => {
+            handleReturnFromLoft([detailItem.id]);
+            closeItemDetail();
+          }}
+          onOpenLoft={() => {
+            closeItemDetail();
+            setView('the-loft');
+          }}
         />
       )}
 
@@ -499,9 +729,9 @@ function PickPrimaryItemModal({ allItems, allCollections, onClose, onPick }: {
   });
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in" onClick={onClose}>
+    <ModalPortal onBackdropClick={onClose} zIndex={400}>
       <div
-        className="bg-ink-800 border border-ink-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col animate-scale-in"
+        className="bg-ink-800 border border-ink-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[min(92vh,820px)] overflow-hidden flex flex-col animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-5 border-b border-ink-700 flex-shrink-0">
@@ -563,11 +793,7 @@ function PickPrimaryItemModal({ allItems, allCollections, onClose, onPick }: {
                   className="group rounded-lg overflow-hidden border border-ink-700/40 hover:border-wardrobe-accent-gold/40 transition-all text-left"
                 >
                   <div className="aspect-square relative">
-                    {item.imageData ? (
-                      <img src={item.imageData} alt={item.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full" style={{ backgroundColor: item.colorHex }} />
-                    )}
+                    <ItemImage item={item} alt={item.name} className="w-full h-full object-cover" />
                   </div>
                   <div className="p-1.5 bg-ink-800">
                     <p className="text-[10px] text-ink-200 truncate leading-tight">{item.name}</p>
@@ -579,7 +805,7 @@ function PickPrimaryItemModal({ allItems, allCollections, onClose, onPick }: {
           )}
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
 

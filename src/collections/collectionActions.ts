@@ -64,9 +64,18 @@ export interface CategoryDraft {
   label: string;
 }
 
+export interface WardrobeFormInput {
+  name: string;
+  icon: string;
+  categoryDrafts: CategoryDraft[];
+  displayMode: 'category' | 'shelf';
+  shelfCount: number;
+  enableSeasonFilter: boolean;
+}
+
 export function buildUpdatedCollection(
   existing: WardrobeCollection,
-  input: { name: string; icon: string; categoryDrafts: CategoryDraft[] }
+  input: WardrobeFormInput
 ): WardrobeCollection {
   const categories = input.categoryDrafts
     .map((draft, index) => ({
@@ -80,6 +89,9 @@ export function buildUpdatedCollection(
     name: input.name.trim(),
     icon: input.icon,
     categories,
+    displayMode: input.displayMode,
+    shelfCount: input.shelfCount,
+    enableSeasonFilter: input.enableSeasonFilter,
   };
 }
 

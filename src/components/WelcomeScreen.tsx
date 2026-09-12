@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Layers, Sparkles } from 'lucide-react';
 
 interface WelcomeScreenProps {
@@ -8,13 +8,19 @@ interface WelcomeScreenProps {
 
 export default function WelcomeScreen({ userName, onDone }: WelcomeScreenProps) {
   const [phase, setPhase] = useState<'doors' | 'open' | 'reveal'>('doors');
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   useEffect(() => {
     const t1 = setTimeout(() => setPhase('open'), 400);
     const t2 = setTimeout(() => setPhase('reveal'), 1600);
-    const t3 = setTimeout(() => onDone(), 4200);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [onDone]);
+    const t3 = setTimeout(() => onDoneRef.current(), 4200);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, []);
 
   const greeting = userName ? `Welcome, ${userName}` : 'Welcome back';
 

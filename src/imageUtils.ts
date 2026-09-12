@@ -1,7 +1,6 @@
-export function resizeImage(file: File, maxSize: number = 400): Promise<string> {
+export function resizeImage(file: File | string, maxSize: number = 400): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
+    const loadImage = (src: string) => {
       const img = new Image();
       img.onload = () => {
         let { width, height } = img;
@@ -28,8 +27,16 @@ export function resizeImage(file: File, maxSize: number = 400): Promise<string> 
         resolve(canvas.toDataURL('image/jpeg', 0.8));
       };
       img.onerror = reject;
-      img.src = e.target?.result as string;
+      img.src = src;
     };
+
+    if (typeof file === 'string') {
+      loadImage(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => loadImage(e.target?.result as string);
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { DoorOpen } from 'lucide-react';
-import type { WardrobeItem, WardrobeCollection, Look } from '@/types';
+import type { LoftBox, WardrobeItem, WardrobeCollection, Look } from '@/types';
 import WardrobeInterior from './WardrobeInterior';
 
 interface WardrobeProps {
@@ -16,6 +16,10 @@ interface WardrobeProps {
   onSaveLook: (look: Look) => void;
   onDeleteLook: (lookId: string) => void;
   onToggleLaundry: (id: string) => void;
+  loftBoxes: LoftBox[];
+  onMoveToLoft: (itemIds: string[], boxId: string) => void;
+  onReturnFromLoft: (itemIds: string[]) => void;
+  onOpenLoft: () => void;
 }
 
 type DoorState = 'closed' | 'opening' | 'open' | 'closing';
@@ -27,6 +31,7 @@ export default function Wardrobe({
   collection, items, allItems, allCollections, looks,
   onAddItem, onEditItem, onToggleFavorite, onDeleteItem,
   onSaveLook, onDeleteLook, onToggleLaundry,
+  loftBoxes, onMoveToLoft, onReturnFromLoft, onOpenLoft,
 }: WardrobeProps) {
   const [doorState, setDoorState] = useState<DoorState>('closed');
   const doorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -94,6 +99,10 @@ export default function Wardrobe({
                   onSaveLook={onSaveLook}
                   onDeleteLook={onDeleteLook}
                   onToggleLaundry={onToggleLaundry}
+                  loftBoxes={loftBoxes}
+                  onMoveToLoft={onMoveToLoft}
+                  onReturnFromLoft={onReturnFromLoft}
+                  onOpenLoft={onOpenLoft}
                 />
               </div>
             )}

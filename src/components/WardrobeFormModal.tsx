@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
-import type { WardrobeCollection } from '@/types';
+import type { WardrobeCollection, WardrobeDisplayMode } from '@/types';
+import { DEFAULT_SHELF_COUNT } from '@/types';
 import { isCustomCollection, type CategoryDraft } from '@/collections';
 import { getWardrobeIcon, DEFAULT_ICONS } from '@/wardrobeIcons';
+import ModalPortal from '@/components/ModalPortal';
 
 interface WardrobeFormModalProps {
   mode: 'create' | 'edit';
@@ -10,7 +12,14 @@ interface WardrobeFormModalProps {
   itemCount?: number;
   onClose: () => void;
   onCreate?: (collection: Omit<WardrobeCollection, 'id'>) => void;
-  onUpdate?: (input: { name: string; icon: string; categoryDrafts: CategoryDraft[] }) => void;
+  onUpdate?: (input: {
+    name: string;
+    icon: string;
+    categoryDrafts: CategoryDraft[];
+    displayMode: WardrobeDisplayMode;
+    shelfCount: number;
+    enableSeasonFilter: boolean;
+  }) => void;
   onDelete?: () => void;
 }
 
@@ -36,6 +45,11 @@ export default function WardrobeFormModal({
   const [categories, setCategories] = useState<CategoryDraft[]>(
     collection ? categoriesToDrafts(collection) : [{ label: '' }]
   );
+  const [displayMode, setDisplayMode] = useState<WardrobeDisplayMode>(
+    collection?.displayMode ?? 'category'
+  );
+  const [shelfCount, setShelfCount] = useState(collection?.shelfCount ?? DEFAULT_SHELF_COUNT);
+  const [enableSeasonFilter, setEnableSeasonFilter] = useState(collection?.enableSeasonFilter ?? true);
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -44,6 +58,9 @@ export default function WardrobeFormModal({
     setName(collection.name);
     setIcon(collection.icon);
     setCategories(categoriesToDrafts(collection));
+    setDisplayMode(collection.displayMode ?? 'category');
+    setShelfCount(collection.shelfCount ?? DEFAULT_SHELF_COUNT);
+    setEnableSeasonFilter(collection.enableSeasonFilter ?? true);
     setError('');
     setConfirmDelete(false);
   }, [collection]);
@@ -77,13 +94,22 @@ export default function WardrobeFormModal({
     return trimmedCategories;
   };
 
+  const buildPayload = (trimmedCategories: CategoryDraft[]) => ({
+    name: name.trim(),
+    icon,
+    categoryDrafts: trimmedCategories,
+    displayMode,
+    shelfCount: Math.max(1, Math.min(12, shelfCount)),
+    enableSeasonFilter,
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedCategories = validate();
     if (!trimmedCategories) return;
 
     if (isEdit && collection && onUpdate) {
-      onUpdate({ name: name.trim(), icon, categoryDrafts: trimmedCategories });
+      onUpdate(buildPayload(trimmedCategories));
       onClose();
       return;
     }
@@ -96,6 +122,9 @@ export default function WardrobeFormModal({
           id: `${Date.now()}-${index}`,
           label: draft.label,
         })),
+        displayMode,
+        shelfCount: Math.max(1, Math.min(12, shelfCount)),
+        enableSeasonFilter,
       });
       onClose();
     }
@@ -108,12 +137,9 @@ export default function WardrobeFormModal({
   const showDelete = isEdit && collection && isCustomCollection(collection) && onDelete;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
-      onClick={onClose}
-    >
+    <ModalPortal onBackdropClick={onClose} zIndex={400}>
       <div
-        className="bg-ink-800 border border-ink-700 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar animate-scale-in"
+        className="bg-ink-800 border border-ink-700 rounded-2xl shadow-2xl w-full max-w-lg max-h-[min(90vh,820px)] overflow-y-auto custom-scrollbar animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-5 border-b border-ink-700">
@@ -164,7 +190,61 @@ export default function WardrobeFormModal({
           </div>
 
           <div>
-            <label className={labelClass}>Categories (shelves inside this wardrobe)</label>
+            <label className={labelClass}>Display Layout</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setDisplayMode('category')}
+                className={`py-2.5 px-3 rounded-lg text-xs font-medium border transition-all ${
+                  displayMode === 'category'
+                    ? 'border-wardrobe-accent-gold/50 bg-wardrobe-accent-gold/15 text-wardrobe-accent-gold'
+                    : 'border-ink-700 text-ink-400 hover:border-ink-600'
+                }`}
+              >
+                By Category
+                <span className="block text-[10px] font-normal text-ink-500 mt-0.5">Tops, bottoms, etc.</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDisplayMode('shelf')}
+                className={`py-2.5 px-3 rounded-lg text-xs font-medium border transition-all ${
+                  displayMode === 'shelf'
+                    ? 'border-wardrobe-accent-gold/50 bg-wardrobe-accent-gold/15 text-wardrobe-accent-gold'
+                    : 'border-ink-700 text-ink-400 hover:border-ink-600'
+                }`}
+              >
+                Shelf-wise
+                <span className="block text-[10px] font-normal text-ink-500 mt-0.5">Physical shelf rows</span>
+              </button>
+            </div>
+          </div>
+
+          {displayMode === 'shelf' && (
+            <div>
+              <label className={labelClass}>Number of Shelves</label>
+              <input
+                type="number"
+                min={1}
+                max={12}
+                value={shelfCount}
+                onChange={(e) => setShelfCount(Number(e.target.value))}
+                className={inputClass}
+              />
+            </div>
+          )}
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={enableSeasonFilter}
+              onChange={(e) => setEnableSeasonFilter(e.target.checked)}
+              className="rounded border-ink-600 bg-ink-900 text-wardrobe-accent-gold focus:ring-wardrobe-accent-gold/40"
+            />
+            <span className="text-sm text-ink-300">Enable season filters for this wardrobe</span>
+          </label>
+
+          <div>
+            <label className={labelClass}>Categories (for organizing items)</label>
             <div className="space-y-2">
               {categories.map((cat, index) => (
                 <div key={cat.id ?? `new-${index}`} className="flex gap-2 items-center">
@@ -259,6 +339,6 @@ export default function WardrobeFormModal({
           </div>
         )}
       </div>
-    </div>
+    </ModalPortal>
   );
 }

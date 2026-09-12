@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import type { WardrobeItem, WardrobeCollection, Season } from '@/types';
-import { SEASON_LABELS, SEASONS } from '@/types';
+import { DEFAULT_SHELF_COUNT, SEASON_LABELS, SEASONS } from '@/types';
 import PhotoUpload from './PhotoUpload';
+import ModalPortal from './ModalPortal';
 
 interface EditItemModalProps {
   item: WardrobeItem;
@@ -20,7 +21,14 @@ export default function EditItemModal({ item, collection, onClose, onSave }: Edi
   const [size, setSize] = useState(item.size);
   const [season, setSeason] = useState<Season>(item.season);
   const [notes, setNotes] = useState(item.notes ?? '');
-  const [imageData, setImageData] = useState<string | undefined>(item.imageData);
+  const [imageUrl, setImageUrl] = useState<string | undefined>(item.imageUrl ?? item.imageData);
+  const [purchasePrice, setPurchasePrice] = useState(item.purchasePrice?.toString() ?? '');
+  const [purchaseDate, setPurchaseDate] = useState(
+    item.purchaseDate ? new Date(item.purchaseDate).toISOString().slice(0, 10) : ''
+  );
+  const [shelfIndex, setShelfIndex] = useState(item.shelfIndex ?? 0);
+  const isShelfMode = (collection.displayMode ?? 'category') === 'shelf';
+  const shelfCount = collection.shelfCount ?? DEFAULT_SHELF_COUNT;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +43,11 @@ export default function EditItemModal({ item, collection, onClose, onSave }: Edi
       size: size.trim() || 'N/A',
       season,
       notes: notes.trim() || undefined,
-      imageData,
+      imageUrl,
+      imageData: undefined,
+      purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
+      purchaseDate: purchaseDate ? new Date(purchaseDate).getTime() : undefined,
+      shelfIndex: isShelfMode ? shelfIndex : item.shelfIndex ?? 0,
     });
     onClose();
   };
@@ -44,9 +56,9 @@ export default function EditItemModal({ item, collection, onClose, onSave }: Edi
   const labelClass = "block text-xs font-medium text-ink-300 mb-1.5 uppercase tracking-wider";
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+    <ModalPortal onBackdropClick={onClose} zIndex={400}>
       <div
-        className="bg-ink-800 border border-ink-700 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar animate-scale-in"
+        className="bg-ink-800 border border-ink-700 rounded-2xl shadow-2xl w-full max-w-lg max-h-[min(90vh,820px)] overflow-y-auto custom-scrollbar animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-5 border-b border-ink-700">
@@ -57,7 +69,7 @@ export default function EditItemModal({ item, collection, onClose, onSave }: Edi
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <PhotoUpload imageData={imageData} onChange={setImageData} />
+          <PhotoUpload imageUrl={imageUrl} imageData={item.imageData} onChange={setImageUrl} />
 
           <div>
             <label className={labelClass}>Item Name</label>
@@ -71,13 +83,28 @@ export default function EditItemModal({ item, collection, onClose, onSave }: Edi
                 {collection.categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
             </div>
+            {(collection.enableSeasonFilter ?? true) ? (
+              <div>
+                <label className={labelClass}>Season</label>
+                <select value={season} onChange={(e) => setSeason(e.target.value as Season)} className={inputClass}>
+                  {SEASONS.map((s) => <option key={s} value={s}>{SEASON_LABELS[s]}</option>)}
+                </select>
+              </div>
+            ) : (
+              <div />
+            )}
+          </div>
+
+          {isShelfMode && (
             <div>
-              <label className={labelClass}>Season</label>
-              <select value={season} onChange={(e) => setSeason(e.target.value as Season)} className={inputClass}>
-                {SEASONS.map((s) => <option key={s} value={s}>{SEASON_LABELS[s]}</option>)}
+              <label className={labelClass}>Shelf</label>
+              <select value={shelfIndex} onChange={(e) => setShelfIndex(Number(e.target.value))} className={inputClass}>
+                {Array.from({ length: shelfCount }, (_, i) => (
+                  <option key={i} value={i}>Shelf {i + 1}</option>
+                ))}
               </select>
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -87,6 +114,30 @@ export default function EditItemModal({ item, collection, onClose, onSave }: Edi
             <div>
               <label className={labelClass}>Size</label>
               <input value={size} onChange={(e) => setSize(e.target.value)} className={inputClass} placeholder="e.g. M" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Purchase price (optional)</label>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                value={purchasePrice}
+                onChange={(e) => setPurchasePrice(e.target.value)}
+                className={inputClass}
+                placeholder="e.g. 49"
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Purchase date (optional)</label>
+              <input
+                type="date"
+                value={purchaseDate}
+                onChange={(e) => setPurchaseDate(e.target.value)}
+                className={inputClass}
+              />
             </div>
           </div>
 
@@ -118,6 +169,6 @@ export default function EditItemModal({ item, collection, onClose, onSave }: Edi
           </div>
         </form>
       </div>
-    </div>
+    </ModalPortal>
   );
 }

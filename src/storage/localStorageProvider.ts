@@ -1,3 +1,4 @@
+import { normalizeWardrobeData } from '@/storage/normalize';
 import type { WardrobeData, WardrobeStorageProvider } from '@/storage/types';
 
 const STORAGE_KEY = 'my-wardrobe-data-v1';
@@ -24,7 +25,7 @@ export class LocalStorageProvider implements WardrobeStorageProvider {
       const parsed: unknown = JSON.parse(raw);
       if (!isWardrobeData(parsed)) return null;
 
-      return parsed;
+      return normalizeWardrobeData(parsed);
     } catch {
       return null;
     }

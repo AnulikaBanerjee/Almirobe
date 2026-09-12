@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { X, Plus, Check, Search, Sparkles } from 'lucide-react';
 import { buildLookFromDraft } from '@/looks';
 import type { WardrobeItem, WardrobeCollection, Look } from '@/types';
+import ItemImage from '@/components/ItemImage';
+import ModalPortal from '@/components/ModalPortal';
 
 interface CreateLookModalProps {
   primaryItem: WardrobeItem;
@@ -24,11 +26,7 @@ function ItemThumbnail({ item, size = 'md' }: { item: WardrobeItem; size?: 'sm' 
   const sizeClass = size === 'sm' ? 'w-12 h-12' : size === 'lg' ? 'w-20 h-20' : 'w-16 h-16';
   return (
     <div className={`${sizeClass} rounded-lg overflow-hidden border border-ink-700 flex-shrink-0 relative`}>
-      {item.imageData ? (
-        <img src={item.imageData} alt={item.name} className="w-full h-full object-cover" />
-      ) : (
-        <div className="w-full h-full" style={{ backgroundColor: item.colorHex }} />
-      )}
+      <ItemImage item={item} alt={item.name} className="w-full h-full object-cover" />
     </div>
   );
 }
@@ -82,9 +80,9 @@ export default function CreateLookModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in" onClick={onClose}>
+    <ModalPortal onBackdropClick={onClose} zIndex={400}>
       <div
-        className="bg-ink-800 border border-ink-700 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-hidden flex flex-col animate-scale-in"
+        className="bg-ink-800 border border-ink-700 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[min(92vh,820px)] overflow-hidden flex flex-col animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -204,11 +202,7 @@ export default function CreateLookModal({
                       }`}
                     >
                       <div className="aspect-square relative">
-                        {item.imageData ? (
-                          <img src={item.imageData} alt={item.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full" style={{ backgroundColor: item.colorHex }} />
-                        )}
+                        <ItemImage item={item} alt={item.name} className="w-full h-full object-cover" />
                         {isSelected && (
                           <div className="absolute inset-0 bg-wardrobe-accent-gold/20 flex items-center justify-center">
                             <div className="w-7 h-7 rounded-full bg-wardrobe-accent-gold text-ink-900 flex items-center justify-center">
@@ -248,6 +242,6 @@ export default function CreateLookModal({
           </button>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
