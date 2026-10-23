@@ -46,5 +46,6 @@ export function normalizeWardrobeData(data: WardrobeData): WardrobeData {
     collections: data.collections.map(normalizeCollection),
     items: data.items.map(normalizeItem),
     loftBoxes: (data.loftBoxes ?? []).map(normalizeLoftBox),
+    gifts: data.gifts ?? [],
   };
 }

@@ -4,6 +4,20 @@ export type WardrobeDisplayMode = 'category' | 'shelf';
 
 export type LentStatus = 'lent' | 'borrowed';
 
+export type GiftDirection = 'received' | 'given';
+
+export interface GiftRecord {
+  id: string;
+  name: string;
+  direction: GiftDirection;
+  personName: string;
+  occasion: string;
+  date?: number;
+  notes?: string;
+  imageUrl?: string;
+  createdAt: number;
+}
+
 /** Storage box in the loft — holds out-of-season or packed-away clothes */
 export interface LoftBox {
   id: string;
@@ -67,6 +81,9 @@ export interface WardrobeItem {
   lentParty?: string;
   lentDate?: number;
   lentNotes?: string;
+  isGift?: boolean;
+  giftFrom?: string;
+  giftOccasion?: string;
   purchasePrice?: number;
   purchaseDate?: number;
   /** Updated when item is worn or marked via outfit logging */

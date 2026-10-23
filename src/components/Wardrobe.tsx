@@ -22,6 +22,7 @@ interface WardrobeProps {
   onReturnFromLoft: (itemIds: string[]) => void;
   onOpenLoft: () => void;
   onOpenCreateLook: (ctx: LookEditorContext) => void;
+  giftRecorderEnabled: boolean;
 }
 
 type DoorState = 'closed' | 'opening' | 'open' | 'closing';
@@ -34,6 +35,7 @@ export default function Wardrobe({
   onAddItem, onEditItem, onToggleFavorite, onDeleteItem,
   onSaveLook, onDeleteLook, onToggleLaundry,
   loftBoxes, onMoveToLoft, onReturnFromLoft, onOpenLoft, onOpenCreateLook,
+  giftRecorderEnabled,
 }: WardrobeProps) {
   const [doorState, setDoorState] = useState<DoorState>('closed');
   const doorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -112,6 +114,7 @@ export default function Wardrobe({
                   onReturnFromLoft={onReturnFromLoft}
                   onOpenLoft={onOpenLoft}
                   onOpenCreateLook={onOpenCreateLook}
+                  giftRecorderEnabled={giftRecorderEnabled}
                 />
               </div>
             )}

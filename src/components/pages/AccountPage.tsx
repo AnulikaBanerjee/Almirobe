@@ -23,6 +23,8 @@ interface AccountPageProps {
   user: AuthUser;
   items: WardrobeItem[];
   collections: WardrobeCollection[];
+  giftRecorderEnabled: boolean;
+  onToggleGiftRecorder: (enabled: boolean) => void;
   onBack: () => void;
   onUpdateUser: (user: AuthUser) => void;
   onOpenMembership: () => void;
@@ -34,6 +36,8 @@ export default function AccountPage({
   user,
   items,
   collections,
+  giftRecorderEnabled,
+  onToggleGiftRecorder,
   onBack,
   onUpdateUser,
   onOpenMembership,
@@ -122,6 +126,22 @@ export default function AccountPage({
             <li>Newsletter: {profile.newsletter ? 'Subscribed' : 'Unsubscribed'}</li>
             <li>Login via: {profile.loginVia}</li>
           </ul>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-[#e4d5be] bg-[#f8f1e4]/80 p-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-[#3d2f24]">Gift Recorder</p>
+            <p className="text-xs text-[#6b5a48] mt-1">Track gifts you receive and give.</p>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-[#5c4d3d]">
+            <input
+              type="checkbox"
+              checked={giftRecorderEnabled}
+              onChange={(event) => onToggleGiftRecorder(event.target.checked)}
+              className="accent-[#8b6914]"
+            />
+            {giftRecorderEnabled ? 'Enabled' : 'Disabled'}
+          </label>
         </div>
 
         <p className="sr-only">

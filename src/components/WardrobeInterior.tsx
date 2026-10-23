@@ -50,6 +50,7 @@ interface WardrobeInteriorProps {
   onReturnFromLoft: (itemIds: string[]) => void;
   onOpenLoft: () => void;
   onOpenCreateLook: (ctx: LookEditorContext) => void;
+  giftRecorderEnabled: boolean;
 }
 
 function ItemCard({
@@ -275,10 +276,11 @@ function ChipRow({
   );
 }
 
-function AddItemModal({ collection, onClose, onAdd }: {
+function AddItemModal({ collection, onClose, onAdd, giftRecorderEnabled }: {
   collection: WardrobeCollection;
   onClose: () => void;
   onAdd: (item: WardrobeItem) => void;
+  giftRecorderEnabled: boolean;
 }) {
   const { authProvider } = useAuthSession();
   const imageStorage = useImageStorage();
@@ -300,6 +302,9 @@ function AddItemModal({ collection, onClose, onAdd }: {
   const [notes, setNotes] = useState('');
   const [purchasePrice, setPurchasePrice] = useState('');
   const [purchaseDate, setPurchaseDate] = useState('');
+  const [isGift, setIsGift] = useState(false);
+  const [giftFrom, setGiftFrom] = useState('');
+  const [giftOccasion, setGiftOccasion] = useState('');
   const [shelfIndex, setShelfIndex] = useState(0);
   const isShelfMode = (collection.displayMode ?? 'category') === 'shelf';
   const shelfCount = collection.shelfCount ?? DEFAULT_SHELF_COUNT;
@@ -379,6 +384,9 @@ function AddItemModal({ collection, onClose, onAdd }: {
       markedForDonation: false,
       loftBoxId: null,
       lentStatus: null,
+      isGift: giftRecorderEnabled && isGift,
+      giftFrom: giftRecorderEnabled && isGift ? giftFrom.trim() || undefined : undefined,
+      giftOccasion: giftRecorderEnabled && isGift ? giftOccasion.trim() || undefined : undefined,
       createdAt: Date.now(),
     });
     onClose();
@@ -437,6 +445,31 @@ function AddItemModal({ collection, onClose, onAdd }: {
             label={t(locale, 'photo')}
             cutoutPending={photo.state.cutoutStatus === 'queued' || photo.state.cutoutStatus === 'running'}
           />
+          {giftRecorderEnabled && (
+            <div className="rounded-lg border border-ink-700/60 p-3 space-y-3">
+              <label className="flex items-center gap-2 text-sm text-ink-200">
+                <input
+                  type="checkbox"
+                  checked={isGift}
+                  onChange={(event) => setIsGift(event.target.checked)}
+                  className="accent-wardrobe-accent-gold"
+                />
+                This item was a gift
+              </label>
+              {isGift && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>Gift from</label>
+                    <input value={giftFrom} onChange={(event) => setGiftFrom(event.target.value)} className={inputClass} placeholder="Person's name" />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Occasion</label>
+                    <input value={giftOccasion} onChange={(event) => setGiftOccasion(event.target.value)} className={inputClass} placeholder="Birthday, holiday..." />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {photo.state.reviewOpen && photo.state.previewUrl && (
             <GarmentCropModal
               imageUrl={photo.state.previewUrl}
@@ -672,6 +705,7 @@ export default function WardrobeInterior({
   onAddItem, onEditItem, onToggleFavorite, onDeleteItem,
   onSaveLook, onDeleteLook, onToggleLaundry,
   loftBoxes, onMoveToLoft, onReturnFromLoft, onOpenLoft, onOpenCreateLook,
+  giftRecorderEnabled,
 }: WardrobeInteriorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategoryId, setActiveCategoryId] = useState<string>('all');
@@ -886,6 +920,7 @@ export default function WardrobeInterior({
           collection={collection}
           onClose={() => setShowAddModal(false)}
           onAdd={onAddItem}
+          giftRecorderEnabled={giftRecorderEnabled}
         />
       )}
 
@@ -928,6 +963,7 @@ export default function WardrobeInterior({
           collection={allCollections.find((c) => c.id === editItem.collectionId) ?? collection}
           onClose={() => setEditItem(null)}
           onSave={(updated) => { onEditItem(updated); setEditItem(null); }}
+          giftRecorderEnabled={giftRecorderEnabled}
         />
       )}
 

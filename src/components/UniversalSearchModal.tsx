@@ -75,6 +75,8 @@ export default function UniversalSearchModal({
           item.color,
           item.size,
           item.notes,
+          item.giftFrom,
+          item.giftOccasion,
           item.productType,
           item.subtype,
           location,

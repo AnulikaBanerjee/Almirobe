@@ -17,6 +17,7 @@ export type AppView =
   | 'create-look'
   | 'laundry'
   | 'lent'
+  | 'gifts'
   | 'plan-trip-wear'
   | MenuPage;
 

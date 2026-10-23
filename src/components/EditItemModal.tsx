@@ -15,9 +15,16 @@ interface EditItemModalProps {
   collection: WardrobeCollection;
   onClose: () => void;
   onSave: (item: WardrobeItem) => void;
+  giftRecorderEnabled: boolean;
 }
 
-export default function EditItemModal({ item, collection, onClose, onSave }: EditItemModalProps) {
+export default function EditItemModal({
+  item,
+  collection,
+  onClose,
+  onSave,
+  giftRecorderEnabled,
+}: EditItemModalProps) {
   const imageStorage = useImageStorage();
   const photo = useGarmentPhoto();
   const [name, setName] = useState(item.name);
@@ -33,6 +40,9 @@ export default function EditItemModal({ item, collection, onClose, onSave }: Edi
   const [purchaseDate, setPurchaseDate] = useState(
     item.purchaseDate ? new Date(item.purchaseDate).toISOString().slice(0, 10) : ''
   );
+  const [isGift, setIsGift] = useState(item.isGift ?? false);
+  const [giftFrom, setGiftFrom] = useState(item.giftFrom ?? '');
+  const [giftOccasion, setGiftOccasion] = useState(item.giftOccasion ?? '');
   const [shelfIndex, setShelfIndex] = useState(item.shelfIndex ?? 0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -98,6 +108,13 @@ export default function EditItemModal({ item, collection, onClose, onSave }: Edi
         purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
         purchaseDate: purchaseDate ? new Date(purchaseDate).getTime() : undefined,
         shelfIndex: isShelfMode ? shelfIndex : item.shelfIndex ?? 0,
+        isGift: giftRecorderEnabled ? isGift : item.isGift,
+        giftFrom: giftRecorderEnabled
+          ? isGift ? giftFrom.trim() || undefined : undefined
+          : item.giftFrom,
+        giftOccasion: giftRecorderEnabled
+          ? isGift ? giftOccasion.trim() || undefined : undefined
+          : item.giftOccasion,
       });
       onClose();
     } catch {
@@ -256,6 +273,32 @@ export default function EditItemModal({ item, collection, onClose, onSave }: Edi
             <label className={labelClass}>Notes (optional)</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={`${inputClass} resize-none`} rows={2} placeholder="Any details..." />
           </div>
+
+          {giftRecorderEnabled && (
+            <div className="rounded-lg border border-ink-700/60 p-3 space-y-3">
+              <label className="flex items-center gap-2 text-sm text-ink-200">
+                <input
+                  type="checkbox"
+                  checked={isGift}
+                  onChange={(event) => setIsGift(event.target.checked)}
+                  className="accent-wardrobe-accent-gold"
+                />
+                This item was a gift
+              </label>
+              {isGift && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>Gift from</label>
+                    <input value={giftFrom} onChange={(event) => setGiftFrom(event.target.value)} className={inputClass} placeholder="Person's name" />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Occasion</label>
+                    <input value={giftOccasion} onChange={(event) => setGiftOccasion(event.target.value)} className={inputClass} placeholder="Birthday, holiday..." />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {saveError && <p className="text-xs text-red-400">{saveError}</p>}
 

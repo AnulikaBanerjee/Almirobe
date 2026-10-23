@@ -1,15 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRightLeft,
   Briefcase,
   DoorOpen,
+  Gift,
   LogOut,
   Pencil,
   Search,
   Sparkles,
   WashingMachine,
 } from 'lucide-react';
-import type { LoftBox, WardrobeItem, WardrobeCollection, Look } from '@/types';
+import type { GiftRecord, LoftBox, WardrobeItem, WardrobeCollection, Look } from '@/types';
 import { createStorageProvider, useWardrobeData } from '@/storage';
 import { useAuthSession } from '@/auth/AuthSessionContext';
 import type { AuthUser } from '@/auth';
@@ -38,6 +39,7 @@ import OnboardingModal from '@/components/OnboardingModal';
 import ModalPortal from '@/components/ModalPortal';
 import AppMenu from '@/components/AppMenu';
 import LentBorrowedView from '@/components/LentBorrowedView';
+import GiftRecorderView from '@/components/GiftRecorderView';
 import AccountPage from '@/components/pages/AccountPage';
 import AccountHistoryPage from '@/components/pages/AccountHistoryPage';
 import MembershipPage from '@/components/pages/MembershipPage';
@@ -56,7 +58,12 @@ import OrnatePageFrame from '@/components/layout/OrnatePageFrame';
 import ItemImage from '@/components/ItemImage';
 import { addActivity, ensureProfilesForUser } from '@/menu/menuStorage';
 import { markItemWornToday } from '@/reports/wearTracking';
-import { hasCompletedOnboarding, markOnboardingComplete } from '@/userPreferences';
+import {
+  hasCompletedOnboarding,
+  isGiftRecorderEnabled,
+  markOnboardingComplete,
+  setGiftRecorderEnabled,
+} from '@/userPreferences';
 import type { AppView } from '@/navigation';
 type WardrobeFormState =
   | { mode: 'create' }
@@ -88,12 +95,27 @@ function App() {
     setLooks,
     loftBoxes,
     setLoftBoxes,
+    gifts,
+    setGifts,
   } = useWardrobeData(storageProvider);
 
   const [showWelcome, setShowWelcome] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [wardrobeForm, setWardrobeForm] = useState<WardrobeFormState>(null);
   const [view, setView] = useState<AppView>('wardrobe');
+  const [giftRecorderEnabledState, setGiftRecorderEnabledState] = useState(
+    () => isGiftRecorderEnabled(profileId)
+  );
+
+  useEffect(() => {
+    setGiftRecorderEnabledState(isGiftRecorderEnabled(profileId));
+  }, [profileId]);
+
+  const updateGiftRecorderEnabled = (enabled: boolean) => {
+    setGiftRecorderEnabled(profileId, enabled);
+    setGiftRecorderEnabledState(enabled);
+    if (!enabled && view === 'gifts') setView('wardrobe');
+  };
 
   // Look-related modal state (managed at App level so gallery and wardrobe can share)
   const [viewingLook, setViewingLook] = useState<Look | null>(null);
@@ -142,6 +164,7 @@ function App() {
   const totalFavorites = items.filter((i) => i.favorite).length;
   const laundryCount = items.filter((i) => i.inLaundry).length;
   const lentCount = items.filter((i) => i.lentStatus).length;
+  const giftCount = gifts.length + items.filter((item) => item.isGift).length;
   const ActiveIcon = getWardrobeIcon(activeCollection.icon);
 
   const detailItem = detailItemId ? items.find((i) => i.id === detailItemId) ?? null : null;
@@ -287,6 +310,19 @@ function App() {
           : item
       )
     );
+  };
+
+  const handleSaveGift = (gift: GiftRecord) => {
+    setGifts((previous) => {
+      const exists = previous.some((entry) => entry.id === gift.id);
+      return exists
+        ? previous.map((entry) => (entry.id === gift.id ? gift : entry))
+        : [...previous, gift];
+    });
+  };
+
+  const handleDeleteGift = (id: string) => {
+    setGifts((previous) => previous.filter((gift) => gift.id !== id));
   };
 
   const handleReturnFromDonation = (itemIds: string[]) => {
@@ -515,6 +551,26 @@ function App() {
                 </span>
               )}
             </button>
+            {giftRecorderEnabledState && (
+              <button
+                onClick={() => setView('gifts')}
+                className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all ${
+                  view === 'gifts'
+                    ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white'
+                    : 'text-ink-500 hover:text-ink-800'
+                }`}
+              >
+                <Gift className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Gifts</span>
+                {giftCount > 0 && (
+                  <span className={`text-[10px] px-1.5 rounded-full ${
+                    view === 'gifts' ? 'bg-white/20 text-white' : 'bg-amber-100 text-ink-600'
+                  }`}>
+                    {giftCount}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
 
           {/* Stats — hidden on small screens */}
@@ -603,6 +659,7 @@ function App() {
               onReturnFromLoft={handleReturnFromLoft}
               onOpenLoft={() => setView('the-loft')}
               onOpenCreateLook={(ctx) => openCreateLook(ctx, 'wardrobe')}
+              giftRecorderEnabled={giftRecorderEnabledState}
             />
           </>
         ) : view === 'looks' ? (
@@ -661,11 +718,24 @@ function App() {
               onBack={() => setView('wardrobe')}
             />
           </OrnatePageFrame>
+        ) : view === 'gifts' && giftRecorderEnabledState ? (
+          <OrnatePageFrame>
+            <GiftRecorderView
+              gifts={gifts}
+              allItems={items}
+              allCollections={collections}
+              onSaveGift={handleSaveGift}
+              onDeleteGift={handleDeleteGift}
+              onBack={() => setView('wardrobe')}
+            />
+          </OrnatePageFrame>
         ) : view === 'account' ? (
           <AccountPage
             user={user}
             items={items}
             collections={collections}
+            giftRecorderEnabled={giftRecorderEnabledState}
+            onToggleGiftRecorder={updateGiftRecorderEnabled}
             onBack={() => setView('wardrobe')}
             onUpdateUser={setUser}
             onOpenMembership={() => setView('membership')}
@@ -699,6 +769,7 @@ function App() {
             items={items}
             collections={collections}
             looks={looks}
+            giftRecorderEnabled={giftRecorderEnabledState}
             onBack={() => setView('wardrobe')}
             onSaveBox={handleSaveLoftBox}
             onDeleteBox={handleDeleteLoftBox}
@@ -819,6 +890,7 @@ function App() {
           collection={collections.find((c) => c.id === editItem.collectionId) ?? activeCollection}
           onClose={() => setEditItem(null)}
           onSave={(updated) => { handleEditItem(updated); setEditItem(null); }}
+          giftRecorderEnabled={giftRecorderEnabledState}
         />
       )}
 

@@ -1,4 +1,4 @@
-import type { Look, LoftBox, WardrobeCollection, WardrobeItem } from '@/types';
+import type { GiftRecord, Look, LoftBox, WardrobeCollection, WardrobeItem } from '@/types';
 
 /** Persisted wardrobe snapshot — independent of UI/session state. */
 export interface WardrobeData {
@@ -6,6 +6,7 @@ export interface WardrobeData {
   items: WardrobeItem[];
   looks: Look[];
   loftBoxes: LoftBox[];
+  gifts: GiftRecord[];
   activeCollectionId: string;
 }
 
