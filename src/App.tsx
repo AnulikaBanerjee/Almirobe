@@ -1,8 +1,18 @@
 import { useMemo, useState } from 'react';
-import { Sparkles, DoorOpen, WashingMachine, ArrowRightLeft, Pencil } from 'lucide-react';
+import {
+  ArrowRightLeft,
+  Briefcase,
+  DoorOpen,
+  LogOut,
+  Pencil,
+  Search,
+  Sparkles,
+  WashingMachine,
+} from 'lucide-react';
 import type { LoftBox, WardrobeItem, WardrobeCollection, Look } from '@/types';
 import { createStorageProvider, useWardrobeData } from '@/storage';
-import { createAuthProvider, type AuthUser } from '@/auth';
+import { useAuthSession } from '@/auth/AuthSessionContext';
+import type { AuthUser } from '@/auth';
 import {
   buildUpdatedCollection,
   deleteCollectionState,
@@ -11,12 +21,13 @@ import {
 } from '@/collections';
 import { upsertLook, removeItemFromLooks, type LookEditorContext } from '@/looks';
 import { getWardrobeIcon } from '@/wardrobeIcons';
+import AppLogo from '@/components/AppLogo';
 import Wardrobe from '@/components/Wardrobe';
 import WardrobeSelector from '@/components/WardrobeSelector';
 import WardrobeFormModal from '@/components/WardrobeFormModal';
 import LooksGallery from '@/components/LooksGallery';
 import LookViewerModal from '@/components/LookViewerModal';
-import CreateLookModal from '@/components/CreateLookModal';
+import CreateLookPage from '@/components/pages/CreateLookPage';
 import ItemDetailModal from '@/components/ItemDetailModal';
 import EditItemModal from '@/components/EditItemModal';
 import LaundryView from '@/components/LaundryView';
@@ -29,10 +40,19 @@ import AppMenu from '@/components/AppMenu';
 import LentBorrowedView from '@/components/LentBorrowedView';
 import AccountPage from '@/components/pages/AccountPage';
 import AccountHistoryPage from '@/components/pages/AccountHistoryPage';
+import MembershipPage from '@/components/pages/MembershipPage';
+import { getAccountProfile } from '@/profile/accountProfileStorage';
 import PurchaseReportPage from '@/components/pages/PurchaseReportPage';
 import DeclutterReportPage from '@/components/pages/DeclutterReportPage';
 import DonationBoxPage from '@/components/pages/DonationBoxPage';
 import LoftPage from '@/components/pages/LoftPage';
+import ContactPage from '@/components/pages/ContactPage';
+import ArticlesPage from '@/components/pages/ArticlesPage';
+import SuggestionsPage from '@/components/pages/SuggestionsPage';
+import PlanWithFriendsPage from '@/components/pages/PlanWithFriendsPage';
+import PlanYourTripWearPage from '@/components/pages/PlanYourTripWearPage';
+import UniversalSearchModal from '@/components/UniversalSearchModal';
+import OrnatePageFrame from '@/components/layout/OrnatePageFrame';
 import ItemImage from '@/components/ItemImage';
 import { addActivity, ensureProfilesForUser } from '@/menu/menuStorage';
 import { markItemWornToday } from '@/reports/wearTracking';
@@ -44,9 +64,16 @@ type WardrobeFormState =
   | null;
 
 function App() {
-  const authProvider = useMemo(() => createAuthProvider(), []);
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const profileId = user?.id ?? '__guest__';
+  const {
+    user,
+    authProvider,
+    setUser,
+    completeAuthentication,
+    signOut,
+    isLoading: isAuthLoading,
+    activeProfileId,
+  } = useAuthSession();
+  const profileId = activeProfileId ?? user?.id ?? '__guest__';
   const storageProvider = useMemo(() => createStorageProvider('local', profileId), [profileId]);
   const {
     collections,
@@ -71,10 +98,21 @@ function App() {
   // Look-related modal state (managed at App level so gallery and wardrobe can share)
   const [viewingLook, setViewingLook] = useState<Look | null>(null);
   const [lookEditor, setLookEditor] = useState<LookEditorContext | null>(null);
+  const [lookEditorReturnView, setLookEditorReturnView] = useState<AppView>('looks');
   const [detailItemId, setDetailItemId] = useState<string | null>(null);
   const [editItem, setEditItem] = useState<WardrobeItem | null>(null);
-  // Pick-an-item mode for "New Look" from the gallery
-  const [pickingPrimaryItem, setPickingPrimaryItem] = useState(false);
+  const [showUniversalSearch, setShowUniversalSearch] = useState(false);
+
+  const openCreateLook = (ctx: LookEditorContext, returnView: AppView = view) => {
+    setLookEditor(ctx);
+    setLookEditorReturnView(returnView);
+    setView('create-look');
+  };
+
+  const closeCreateLook = () => {
+    setLookEditor(null);
+    setView(lookEditorReturnView);
+  };
 
   const activeCollection = collections.find((c) => c.id === activeCollectionId) ?? collections[0];
   const editingCollection =
@@ -118,14 +156,27 @@ function App() {
 
   const closeItemDetail = () => setDetailItemId(null);
 
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-[#fffdf8] flex items-center justify-center text-ink-600">
+        <div className="flex items-center gap-3 text-sm">
+          <span className="w-5 h-5 border-2 border-ink-600 border-t-wardrobe-accent-gold rounded-full animate-spin" />
+          Restoring your session...
+        </div>
+      </div>
+    );
+  }
+
   // Show login screen if not logged in
   if (!user) {
     return (
       <LoginScreen
         authProvider={authProvider}
         onAuthenticated={(authenticatedUser) => {
-          ensureProfilesForUser(authenticatedUser);
-          setUser(authenticatedUser);
+          if (authProvider.isDemo) {
+            ensureProfilesForUser(authenticatedUser);
+          }
+          completeAuthentication(authenticatedUser);
           setShowWelcome(true);
         }}
       />
@@ -148,7 +199,7 @@ function App() {
   if (isLoading) {
     return (
       <>
-        <div className="min-h-screen bg-ink-900 flex items-center justify-center text-ink-300">
+        <div className="min-h-screen bg-[#fffdf8] flex items-center justify-center text-ink-600">
           <div className="flex items-center gap-3 text-sm">
             <span className="w-5 h-5 border-2 border-ink-600 border-t-wardrobe-accent-gold rounded-full animate-spin" />
             Opening your wardrobe...
@@ -167,19 +218,20 @@ function App() {
   }
 
   const handleSignOut = () => {
-    void authProvider.signOut();
-    setUser(null);
-    setShowWelcome(false);
-    setShowOnboarding(false);
-    setView('wardrobe');
+    void signOut().then(() => {
+      setShowWelcome(false);
+      setShowOnboarding(false);
+      setView('wardrobe');
+    });
   };
 
   const handleEditLookFromViewer = () => {
     if (!viewingLook) return;
     const primary = items.find((i) => i.id === viewingLook.primaryItemId);
-    if (primary) {
-      setLookEditor({ primaryItem: primary, existingLook: viewingLook });
-    }
+    openCreateLook(
+      { primaryItem: primary, existingLook: viewingLook },
+      view === 'create-look' ? lookEditorReturnView : view
+    );
     setViewingLook(null);
   };
 
@@ -335,8 +387,15 @@ function App() {
     setActiveCollectionId(result.nextActiveCollectionId);
   };
 
+  const lookFillsScreen =
+    (view === 'create-look' && Boolean(lookEditor)) || view === 'plan-trip-wear';
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-ink-900 via-ink-800 to-ink-900 text-ink-100 relative overflow-hidden">
+    <div
+      className={`bg-gradient-to-b from-[#fffdf8] via-[#f7f1e6] to-[#efe6d4] text-ink-800 relative overflow-hidden ${
+        lookFillsScreen ? 'h-dvh flex flex-col' : 'min-h-screen'
+      }`}
+    >
       {authProvider.isDemo && <DemoModeBanner />}
       {storageError && (
         <div className="relative z-20 px-4 py-2 text-center text-xs text-amber-200 bg-amber-900/40 border-b border-amber-700/40">
@@ -344,11 +403,10 @@ function App() {
         </div>
       )}
       {/* Ambient background lighting */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-wardrobe-accent-gold/5 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-wardrobe-accent-rose/5 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-wardrobe-accent-gold/15 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-amber-200/20 rounded-full blur-[100px] pointer-events-none" />
 
-      {/* Header */}
-      <header className="relative z-30 px-6 py-5 flex items-center justify-between border-b border-ink-700/40 backdrop-blur-sm">
+      <header className="relative z-30 px-6 py-5 flex items-center justify-between border-b border-amber-200/60 backdrop-blur-sm bg-white/40">
           <div className="flex items-center gap-3">
             <AppMenu
               user={user}
@@ -360,20 +418,44 @@ function App() {
               }}
             />
             <div>
-              <h1 className="text-xl font-serif font-semibold text-ink-50 tracking-wide">My Wardrobe</h1>
-              <p className="text-xs text-ink-400">{user.displayName ? `Welcome, ${user.displayName}` : 'Your personal collection'}</p>
+              <h1 className="flex items-center gap-2 text-xl font-elite italic font-semibold text-ink-800 tracking-wide">
+                <AppLogo size="sm" />
+                Almirobe
+              </h1>
+              <p className="text-xs text-ink-500 mt-0.5">{user.displayName ? `Welcome, ${user.displayName}` : 'Your personal collection'}</p>
             </div>
           </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* View toggle */}
-          <div className="flex items-center rounded-full bg-ink-800/60 border border-ink-700/40 p-0.5">
+          <button
+            type="button"
+            onClick={() => setShowUniversalSearch(true)}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-ink-600 bg-white/70 border border-amber-200/70 hover:text-ink-900 hover:border-wardrobe-accent-gold/50"
+            aria-label="Search everywhere"
+            title="Search everywhere"
+          >
+            <Search className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('plan-trip-wear')}
+            className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+              view === 'plan-trip-wear'
+                ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white border-transparent'
+                : 'text-ink-600 bg-white/70 border-amber-200/70 hover:text-ink-900 hover:border-wardrobe-accent-gold/50'
+            }`}
+            title="Plan Your Trip Wear"
+          >
+            <Briefcase className="w-3.5 h-3.5" />
+            <span>Plan trip</span>
+          </button>
+          <div className="flex items-center rounded-full bg-white/70 border border-amber-200/70 p-0.5">
             <button
               onClick={() => setView('wardrobe')}
               className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all ${
                 view === 'wardrobe'
                   ? 'bg-gradient-to-r from-wardrobe-accent-gold to-amber-300 text-ink-900'
-                  : 'text-ink-400 hover:text-ink-200'
+                  : 'text-ink-500 hover:text-ink-800'
               }`}
             >
               <DoorOpen className="w-3.5 h-3.5" />
@@ -384,14 +466,14 @@ function App() {
               className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all ${
                 view === 'looks'
                   ? 'bg-gradient-to-r from-wardrobe-accent-gold to-amber-300 text-ink-900'
-                  : 'text-ink-400 hover:text-ink-200'
+                  : 'text-ink-500 hover:text-ink-800'
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Looks</span>
               {looks.length > 0 && (
                 <span className={`text-[10px] px-1.5 rounded-full ${
-                  view === 'looks' ? 'bg-ink-900/20 text-ink-800' : 'bg-ink-700/50 text-ink-300'
+                  view === 'looks' ? 'bg-ink-900/20 text-ink-800' : 'bg-amber-100 text-ink-600'
                 }`}>
                   {looks.length}
                 </span>
@@ -402,14 +484,14 @@ function App() {
               className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all ${
                 view === 'laundry'
                   ? 'bg-gradient-to-r from-sky-500 to-blue-500 text-white'
-                  : 'text-ink-400 hover:text-ink-200'
+                  : 'text-ink-500 hover:text-ink-800'
               }`}
             >
               <WashingMachine className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Laundry</span>
               {laundryCount > 0 && (
                 <span className={`text-[10px] px-1.5 rounded-full ${
-                  view === 'laundry' ? 'bg-white/20 text-white' : 'bg-ink-700/50 text-ink-300'
+                  view === 'laundry' ? 'bg-white/20 text-white' : 'bg-amber-100 text-ink-600'
                 }`}>
                   {laundryCount}
                 </span>
@@ -420,14 +502,14 @@ function App() {
               className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all ${
                 view === 'lent'
                   ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white'
-                  : 'text-ink-400 hover:text-ink-200'
+                  : 'text-ink-500 hover:text-ink-800'
               }`}
             >
               <ArrowRightLeft className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Lent</span>
               {lentCount > 0 && (
                 <span className={`text-[10px] px-1.5 rounded-full ${
-                  view === 'lent' ? 'bg-white/20 text-white' : 'bg-ink-700/50 text-ink-300'
+                  view === 'lent' ? 'bg-white/20 text-white' : 'bg-amber-100 text-ink-600'
                 }`}>
                   {lentCount}
                 </span>
@@ -436,21 +518,36 @@ function App() {
           </div>
 
           {/* Stats — hidden on small screens */}
-          <div className="hidden md:flex items-center gap-2 text-sm text-ink-300">
-            <span className="px-3 py-1 rounded-full bg-ink-800/60 border border-ink-700/40">
+          <div className="hidden md:flex items-center gap-2 text-sm text-ink-600">
+            <span className="px-3 py-1 rounded-full bg-white/70 border border-amber-200/70">
               {totalItems} pieces
             </span>
-            <span className="px-3 py-1 rounded-full bg-ink-800/60 border border-ink-700/40 flex items-center gap-1.5">
+            <span className="px-3 py-1 rounded-full bg-white/70 border border-amber-200/70 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-wardrobe-accent-gold" />
               {totalFavorites} favorites
             </span>
           </div>
 
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium text-ink-600 bg-white/70 border border-amber-200/70 hover:text-ink-900 hover:border-wardrobe-accent-gold/50"
+            aria-label="Logout"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Logout</span>
+          </button>
         </div>
       </header>
 
       {/* Main content */}
-      <main className="relative z-10 flex flex-col items-center px-4 py-6 sm:py-8">
+      <main
+        className={
+          lookFillsScreen
+            ? 'relative z-10 flex-1 min-h-0 w-full flex flex-col px-2 py-2 sm:px-4 sm:py-3'
+            : 'relative z-10 flex flex-col items-center px-4 py-6 sm:py-8'
+        }
+      >
         {view === 'wardrobe' ? (
           <>
             {/* Wardrobe selector carousel */}
@@ -472,17 +569,17 @@ function App() {
                 </div>
                 <button
                   onClick={() => setWardrobeForm({ mode: 'edit', collectionId: activeCollectionId })}
-                  className="w-8 h-8 rounded-lg border border-ink-700/60 bg-ink-800/60 text-ink-400 hover:text-ink-100 hover:border-wardrobe-accent-gold/40 transition-all flex items-center justify-center"
+                  className="w-8 h-8 rounded-lg border border-amber-200/80 bg-white/80 text-ink-500 hover:text-ink-800 hover:border-wardrobe-accent-gold/50 transition-all flex items-center justify-center"
                   aria-label="Edit wardrobe"
                   title="Edit wardrobe"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <h2 className="font-serif text-3xl sm:text-4xl text-ink-50 mb-2 leading-tight">
+              <h2 className="font-serif text-3xl sm:text-4xl text-ink-800 mb-2 leading-tight">
                 {activeCollection.name}
               </h2>
-              <p className="text-ink-400 text-sm leading-relaxed">
+              <p className="text-ink-500 text-sm leading-relaxed">
                 {collectionItems.length} {collectionItems.length === 1 ? 'piece' : 'pieces'} in your {activeCollection.name.toLowerCase()} collection
               </p>
             </div>
@@ -505,32 +602,65 @@ function App() {
               onMoveToLoft={handleMoveToLoft}
               onReturnFromLoft={handleReturnFromLoft}
               onOpenLoft={() => setView('the-loft')}
+              onOpenCreateLook={(ctx) => openCreateLook(ctx, 'wardrobe')}
             />
           </>
         ) : view === 'looks' ? (
-          <LooksGallery
-            looks={looks}
-            allItems={items}
-            allCollections={collections}
-            onViewLook={setViewingLook}
-            onCreateLook={() => setPickingPrimaryItem(true)}
+          <OrnatePageFrame>
+            <LooksGallery
+              looks={looks}
+              allItems={items}
+              allCollections={collections}
+              onViewLook={setViewingLook}
+              onCreateLook={() => openCreateLook({}, 'looks')}
+              onBack={() => setView('wardrobe')}
+            />
+          </OrnatePageFrame>
+        ) : view === 'create-look' && lookEditor ? (
+          <OrnatePageFrame fill className="flex-1 min-h-0">
+            <CreateLookPage
+              editor={lookEditor}
+              allItems={items}
+              allCollections={collections}
+              onBack={closeCreateLook}
+              onSave={(look) => {
+                handleSaveLook(look);
+                closeCreateLook();
+              }}
+            />
+          </OrnatePageFrame>
+        ) : view === 'plan-trip-wear' ? (
+          <PlanYourTripWearPage
+            userId={user.id}
+            items={items}
+            collections={collections}
             onBack={() => setView('wardrobe')}
           />
+        ) : view === 'articles' ? (
+          <ArticlesPage onBack={() => setView('wardrobe')} />
+        ) : view === 'suggestions' ? (
+          <SuggestionsPage onBack={() => setView('wardrobe')} />
+        ) : view === 'plan-with-friends' ? (
+          <PlanWithFriendsPage onBack={() => setView('wardrobe')} />
         ) : view === 'laundry' ? (
-          <LaundryView
-            allItems={items}
-            allCollections={collections}
-            onToggleLaundry={handleToggleLaundry}
-            onBack={() => setView('wardrobe')}
-          />
+          <OrnatePageFrame>
+            <LaundryView
+              allItems={items}
+              allCollections={collections}
+              onToggleLaundry={handleToggleLaundry}
+              onBack={() => setView('wardrobe')}
+            />
+          </OrnatePageFrame>
         ) : view === 'lent' ? (
-          <LentBorrowedView
-            allItems={items}
-            allCollections={collections}
-            onUpdateItem={handleEditItem}
-            onClearLent={handleClearLent}
-            onBack={() => setView('wardrobe')}
-          />
+          <OrnatePageFrame>
+            <LentBorrowedView
+              allItems={items}
+              allCollections={collections}
+              onUpdateItem={handleEditItem}
+              onClearLent={handleClearLent}
+              onBack={() => setView('wardrobe')}
+            />
+          </OrnatePageFrame>
         ) : view === 'account' ? (
           <AccountPage
             user={user}
@@ -538,10 +668,17 @@ function App() {
             collections={collections}
             onBack={() => setView('wardrobe')}
             onUpdateUser={setUser}
-            onSignOut={handleSignOut}
+            onOpenMembership={() => setView('membership')}
           />
         ) : view === 'account-history' ? (
           <AccountHistoryPage user={user} onBack={() => setView('wardrobe')} />
+        ) : view === 'membership' ? (
+          <MembershipPage
+            currentLevel={getAccountProfile(user.id, user.displayName ?? undefined, user.email ?? undefined).membershipLevel}
+            onBack={() => setView('account')}
+          />
+        ) : view === 'contact' ? (
+          <ContactPage userId={user.id} onBack={() => setView('wardrobe')} />
         ) : view === 'purchase-report' ? (
           <PurchaseReportPage
             items={items}
@@ -571,10 +708,7 @@ function App() {
             onDeleteItem={handleDeleteItem}
             onToggleFavorite={handleToggleFavorite}
             onToggleLaundry={handleToggleLaundry}
-            onCreateLook={(item) => {
-              setLookEditor({ primaryItem: item });
-              setView('wardrobe');
-            }}
+            onCreateLook={(item) => openCreateLook({ primaryItem: item }, 'the-loft')}
             onViewLook={(look) => {
               setViewingLook(look);
               setView('looks');
@@ -586,15 +720,20 @@ function App() {
             collections={collections}
             onBack={() => setView('wardrobe')}
             onKeep={(item) => handleEditItem(markItemWornToday(item))}
-            onThrowAway={handleDeleteItem}
+            onDonate={(item) => {
+              handleEditItem(item);
+              addActivity(user!.id, `Queued ${item.name} for donation`, 'Moved to donation box from declutter');
+            }}
           />
         )}
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 text-center py-4 text-xs text-ink-600 border-t border-ink-700/30">
-        A place for everything you wear
-      </footer>
+      {!lookFillsScreen && (
+        <footer className="relative z-10 text-center py-4 text-xs text-ink-400 border-t border-amber-200/60">
+          A place for everything you wear
+        </footer>
+      )}
 
       {/* Modals */}
       {showOnboarding && (
@@ -649,7 +788,10 @@ function App() {
           onClose={closeItemDetail}
           onEdit={() => { setEditItem(detailItem); closeItemDetail(); }}
           onDelete={() => { handleDeleteItem(detailItem.id); closeItemDetail(); }}
-          onCreateLook={() => { setLookEditor({ primaryItem: detailItem }); closeItemDetail(); }}
+          onCreateLook={() => {
+            openCreateLook({ primaryItem: detailItem }, view);
+            closeItemDetail();
+          }}
           onViewLook={(look) => { setViewingLook(look); closeItemDetail(); }}
           onToggleFavorite={handleToggleFavorite}
           onToggleLaundry={handleToggleLaundry}
@@ -680,132 +822,17 @@ function App() {
         />
       )}
 
-      {/* Create look modal (from item detail or edit look) */}
-      {lookEditor && (
-        <CreateLookModal
-          key={lookEditor.existingLook?.id ?? `new-${lookEditor.primaryItem.id}`}
-          primaryItem={lookEditor.primaryItem}
-          existingLook={lookEditor.existingLook}
-          allItems={items}
-          allCollections={collections}
-          onClose={() => setLookEditor(null)}
-          onSave={(look) => { handleSaveLook(look); setLookEditor(null); }}
+      {showUniversalSearch && (
+        <UniversalSearchModal
+          items={items}
+          collections={collections}
+          loftBoxes={loftBoxes}
+          onClose={() => setShowUniversalSearch(false)}
+          onSelect={(item) => openItemDetail(item)}
         />
       )}
 
-      {/* Pick primary item modal (from gallery "New Look") */}
-      {pickingPrimaryItem && (
-        <PickPrimaryItemModal
-          allItems={items}
-          allCollections={collections}
-          onClose={() => setPickingPrimaryItem(false)}
-          onPick={(item) => {
-            setPickingPrimaryItem(false);
-            setLookEditor({ primaryItem: item });
-          }}
-        />
-      )}
     </div>
-  );
-}
-
-// Simple item picker for choosing the main piece when creating a look from the gallery
-function PickPrimaryItemModal({ allItems, allCollections, onClose, onPick }: {
-  allItems: WardrobeItem[];
-  allCollections: WardrobeCollection[];
-  onClose: () => void;
-  onPick: (item: WardrobeItem) => void;
-}) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeCollectionId, setActiveCollectionId] = useState<string>('all');
-
-  const filtered = allItems.filter((item) => {
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      if (!item.name.toLowerCase().includes(q) && !item.brand.toLowerCase().includes(q)) return false;
-    }
-    if (activeCollectionId !== 'all' && item.collectionId !== activeCollectionId) return false;
-    return true;
-  });
-
-  return (
-    <ModalPortal onBackdropClick={onClose} zIndex={400}>
-      <div
-        className="bg-ink-800 border border-ink-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[min(92vh,820px)] overflow-hidden flex flex-col animate-scale-in"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between p-5 border-b border-ink-700 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-wardrobe-accent-gold" />
-            <h3 className="text-lg font-serif text-ink-50">Choose Your Main Piece</h3>
-          </div>
-          <button onClick={onClose} className="text-ink-400 hover:text-ink-200 transition-colors">
-            <span className="sr-only">Close</span>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-
-        <div className="px-5 pt-4 pb-2 flex-shrink-0 space-y-2">
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search items..."
-            className="w-full bg-ink-900/70 border border-ink-700/60 rounded-lg px-3 py-2 text-sm text-ink-100 placeholder-ink-500 focus:outline-none focus:border-wardrobe-accent-gold/50 transition-all"
-          />
-          <div className="flex flex-wrap gap-1">
-            <button
-              onClick={() => setActiveCollectionId('all')}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
-                activeCollectionId === 'all'
-                  ? 'bg-wardrobe-accent-gold/20 text-wardrobe-accent-gold border border-wardrobe-accent-gold/40'
-                  : 'bg-ink-900/50 text-ink-400 border border-ink-700/40 hover:text-ink-300'
-              }`}
-            >
-              All
-            </button>
-            {allCollections.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => setActiveCollectionId(c.id)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
-                  activeCollectionId === c.id
-                    ? 'bg-wardrobe-accent-gold/20 text-wardrobe-accent-gold border border-wardrobe-accent-gold/40'
-                    : 'bg-ink-900/50 text-ink-400 border border-ink-700/40 hover:text-ink-300'
-                }`}
-              >
-                {c.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-5 pt-2">
-          {filtered.length === 0 ? (
-            <div className="py-12 text-center">
-              <p className="text-ink-400 text-sm">No items found</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {filtered.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => onPick(item)}
-                  className="group rounded-lg overflow-hidden border border-ink-700/40 hover:border-wardrobe-accent-gold/40 transition-all text-left"
-                >
-                  <div className="aspect-square relative">
-                    <ItemImage item={item} alt={item.name} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="p-1.5 bg-ink-800">
-                    <p className="text-[10px] text-ink-200 truncate leading-tight">{item.name}</p>
-                    <p className="text-[9px] text-ink-500 truncate">{item.brand}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </ModalPortal>
   );
 }
 

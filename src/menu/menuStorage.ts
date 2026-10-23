@@ -62,16 +62,19 @@ function pruneStaleDemoProfiles(profiles: StoredProfile[], activeUserId: string)
 export function ensureProfilesForUser(user: AuthUser): StoredProfile[] {
   const existing = pruneStaleDemoProfiles(readJson<StoredProfile[]>(PROFILES_KEY, []), user.id);
   const byId = new Map(existing.map((p) => [p.id, p]));
+  const wasEmpty = existing.length === 0;
 
   byId.set(user.id, {
     id: user.id,
     displayName: user.displayName,
     email: user.email,
-    label: user.displayName ?? 'Me',
+    label: user.displayName ?? existing.find((p) => p.id === user.id)?.label ?? 'Me',
   });
 
-  for (const demo of DEMO_PROFILES) {
-    if (!byId.has(demo.id)) byId.set(demo.id, demo);
+  if (wasEmpty) {
+    for (const demo of DEMO_PROFILES) {
+      if (!byId.has(demo.id)) byId.set(demo.id, demo);
+    }
   }
 
   const base = [...byId.values()];
@@ -81,6 +84,24 @@ export function ensureProfilesForUser(user: AuthUser): StoredProfile[] {
 
 export function getProfiles(): StoredProfile[] {
   return readJson<StoredProfile[]>(PROFILES_KEY, []);
+}
+
+export function addManagedProfile(label: string): StoredProfile {
+  const trimmed = label.trim() || 'New profile';
+  const profile: StoredProfile = {
+    id: `profile-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    displayName: trimmed,
+    email: undefined,
+    label: trimmed,
+  };
+  writeJson(PROFILES_KEY, [...getProfiles(), profile]);
+  return profile;
+}
+
+export function deleteManagedProfile(profileId: string): StoredProfile[] {
+  const next = getProfiles().filter((p) => p.id !== profileId);
+  writeJson(PROFILES_KEY, next);
+  return next;
 }
 
 export function updateProfileName(profileId: string, displayName: string): StoredProfile[] {

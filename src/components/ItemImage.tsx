@@ -14,7 +14,7 @@ export default function ItemImage({ item, alt, className, fallbackClassName }: I
   const imageStorage = useImageStorage();
   const ref = getItemImageRef(item);
   const [src, setSrc] = useState<string | null>(
-    ref?.startsWith('data:') || ref?.startsWith('http') || ref?.startsWith('/uploads/')
+    ref && (ref.startsWith('data:') || ref.startsWith('http') || ref.startsWith('blob:') || ref.startsWith('/uploads/'))
       ? ref
       : null
   );
@@ -24,7 +24,7 @@ export default function ItemImage({ item, alt, className, fallbackClassName }: I
       setSrc(null);
       return;
     }
-    if (ref.startsWith('data:') || ref.startsWith('http') || ref.startsWith('/uploads/')) {
+    if (ref.startsWith('data:') || ref.startsWith('http') || ref.startsWith('blob:') || ref.startsWith('/uploads/')) {
       setSrc(ref);
       return;
     }

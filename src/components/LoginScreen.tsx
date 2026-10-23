@@ -1,20 +1,29 @@
 import { useState } from 'react';
-import { Layers, Mail, Lock, User, Phone, ArrowRight, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { Lock, Phone, User } from 'lucide-react';
+import { ApiClientError } from '@/api/client';
 import type { AuthMode, AuthProvider, AuthUser } from '@/auth';
+import { validateEmailAddress } from '@/auth/emailValidation';
 import DemoModeBanner from '@/components/DemoModeBanner';
+import DesignSplitLayout from '@/components/layout/DesignSplitLayout';
 
 interface LoginScreenProps {
   authProvider: AuthProvider;
   onAuthenticated: (user: AuthUser) => void;
 }
 
+type AuthTab = 'email' | 'phone';
+
 export default function LoginScreen({ authProvider, onAuthenticated }: LoginScreenProps) {
+  const [tab, setTab] = useState<AuthTab>('email');
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [debugOtp, setDebugOtp] = useState<string | null>(null);
+  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -25,8 +34,8 @@ export default function LoginScreen({ authProvider, onAuthenticated }: LoginScre
     try {
       const user = await action();
       onAuthenticated(user);
-    } catch {
-      setError('Sign in failed. Please try again.');
+    } catch (err) {
+      setError(err instanceof ApiClientError || err instanceof Error ? err.message : 'Sign in failed. Please try again.');
       setLoading(false);
     }
   };
@@ -35,7 +44,6 @@ export default function LoginScreen({ authProvider, onAuthenticated }: LoginScre
     e.preventDefault();
     if (loading) return;
     setError('');
-
     if (mode === 'signup' && !name.trim()) {
       setError('Please enter your name');
       return;
@@ -44,11 +52,17 @@ export default function LoginScreen({ authProvider, onAuthenticated }: LoginScre
       setError('Please enter your email');
       return;
     }
+    if (mode === 'signup') {
+      const emailCheck = validateEmailAddress(email);
+      if (!emailCheck.ok) {
+        setError(emailCheck.message);
+        return;
+      }
+    }
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
     }
-
     void runAuth(() =>
       authProvider.signInWithEmail(
         { email: email.trim(), password, name: name.trim() || undefined },
@@ -57,236 +71,268 @@ export default function LoginScreen({ authProvider, onAuthenticated }: LoginScre
     );
   };
 
-  const handleGoogleLogin = () => {
-    void runAuth(() => authProvider.signInWithGoogle());
-  };
-
-  const handlePhoneLogin = () => {
-    if (loading || !phone.trim()) return;
-    void runAuth(() => authProvider.signInWithPhone(phone.trim()));
-  };
-
-  const switchMode = (newMode: AuthMode) => {
-    setMode(newMode);
+  const handleSendOtp = async () => {
+    if (loading) return;
     setError('');
-    setName('');
-    setEmail('');
-    setPassword('');
-    setPhone('');
+    if (!phone.trim()) {
+      setError('Please enter your mobile number');
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await authProvider.requestPhoneOtp(phone.trim());
+      setOtpSent(true);
+      setDebugOtp(result.debugCode ?? null);
+    } catch (err) {
+      setError(err instanceof ApiClientError || err instanceof Error ? err.message : 'Could not send OTP');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const inputClass = 'w-full bg-ink-900/60 border border-ink-700/50 rounded-xl pl-11 pr-4 py-3 text-sm text-ink-100 placeholder-ink-500 focus:outline-none focus:border-wardrobe-accent-gold/50 focus:ring-1 focus:ring-wardrobe-accent-gold/30 transition-all';
-  const labelClass = 'block text-xs font-medium text-ink-400 mb-2 uppercase tracking-wider';
+  const handleVerifyOtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otp.trim()) {
+      setError('Enter the OTP sent to your phone');
+      return;
+    }
+    void runAuth(() => authProvider.verifyPhoneOtp(phone.trim(), otp.trim()));
+  };
+
+  const inputClass =
+    'w-full bg-transparent border border-[#c9b08a] rounded-lg pl-11 pr-4 py-3 text-sm text-[#3d2f24] placeholder-[#9a8b78] focus:outline-none focus:border-[#8b5a2b]';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-ink-900 via-ink-800 to-ink-900 text-ink-100 relative overflow-hidden flex flex-col">
+    <div className="min-h-screen bg-[#f4ead8] text-[#3d2f24] flex flex-col items-center justify-center px-3 py-8">
       {authProvider.isDemo && <DemoModeBanner />}
-      <div className="flex-1 flex items-center justify-center px-4 py-8 relative overflow-hidden">
-      {/* Ambient lighting */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[400px] bg-wardrobe-accent-gold/5 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[400px] h-[300px] bg-wardrobe-accent-rose/5 rounded-full blur-[100px] pointer-events-none" />
+      <DesignSplitLayout artSrc="/designs/login.jpg" artAlt="Couple looking into an open wardrobe" tall>
+        <h1 className="font-serif text-[2rem] sm:text-[2.35rem] leading-tight text-[#2b2118] mb-6">
+          Hello,
+          <br />
+          Welcome back
+        </h1>
 
-      {/* Floating decorative elements */}
-      <div className="absolute top-20 left-10 w-32 h-32 border border-wardrobe-accent-gold/10 rounded-full animate-float-slow pointer-events-none" />
-      <div className="absolute bottom-32 right-16 w-24 h-24 border border-wardrobe-accent-rose/10 rounded-full animate-float-slow pointer-events-none" style={{ animationDelay: '1.5s' }} />
-
-      <div className="relative z-10 w-full max-w-md">
-        {/* Logo / Brand */}
-        <div className="text-center mb-8 animate-fade-in-up">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-wardrobe-accent-gold to-amber-700 shadow-xl shadow-wardrobe-accent-gold/20 mb-4 animate-door-glow">
-            <Layers className="w-8 h-8 text-ink-900" />
-          </div>
-          <h1 className="font-serif text-4xl text-ink-50 mb-2 tracking-wide">
-            <span className="bg-gradient-to-r from-wardrobe-accent-gold via-amber-200 to-wardrobe-accent-gold bg-[length:200%_auto] animate-shimmer-gold bg-clip-text text-transparent">
-              My Wardrobe
-            </span>
-          </h1>
-          <p className="text-ink-400 text-sm">Your personal closet, beautifully organized</p>
+        <div className="flex gap-2 mb-5 max-w-md">
+          {([
+            ['email', 'Email'],
+            ['phone', 'Mobile OTP'],
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => {
+                setTab(id);
+                setError('');
+                setOtpSent(false);
+                setDebugOtp(null);
+              }}
+              className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                tab === id
+                  ? 'border-[#8b5a2b] bg-[#6b4423] text-[#faf6ee]'
+                  : 'border-[#c9b08a] text-[#5c4d3d] hover:bg-[#f0e4d0]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
-        {/* Auth card */}
-        <div className="bg-ink-800/60 backdrop-blur-xl border border-ink-700/50 rounded-2xl shadow-2xl p-6 sm:p-8 animate-scale-in">
-          {/* Mode toggle */}
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-ink-900/50 border border-ink-700/30 mb-6">
-            <button
-              onClick={() => switchMode('login')}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                mode === 'login'
-                  ? 'bg-gradient-to-r from-wardrobe-accent-gold to-amber-300 text-ink-900 shadow-md'
-                  : 'text-ink-400 hover:text-ink-200'
-              }`}
-            >
-              Welcome Back
-            </button>
-            <button
-              onClick={() => switchMode('signup')}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                mode === 'signup'
-                  ? 'bg-gradient-to-r from-wardrobe-accent-gold to-amber-300 text-ink-900 shadow-md'
-                  : 'text-ink-400 hover:text-ink-200'
-              }`}
-            >
-              Create Profile
-            </button>
-          </div>
-
-          {/* Social login buttons */}
-          <div className="space-y-2.5 mb-5">
-            {/* Google */}
-            <button
-              onClick={handleGoogleLogin}
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-3 py-3 rounded-xl text-sm font-medium text-ink-100 bg-ink-900/60 border border-ink-700/50 hover:bg-ink-700/40 hover:border-ink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-              Continue with Google
-            </button>
-
-            {/* Phone */}
-            <div className="flex items-center gap-2">
-              <div className="flex-1 flex items-center bg-ink-900/60 border border-ink-700/50 rounded-xl overflow-hidden focus-within:border-wardrobe-accent-gold/50 transition-all">
-                <Phone className="w-4 h-4 text-ink-500 ml-3.5 flex-shrink-0" />
-                <input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 555 000 0000"
-                  className="flex-1 bg-transparent px-3 py-3 text-sm text-ink-100 placeholder-ink-500 focus:outline-none"
-                />
-                <button
-                  onClick={handlePhoneLogin}
-                  disabled={loading || !phone.trim()}
-                  className="flex items-center gap-1 px-4 py-3 text-xs font-medium text-sky-300 hover:text-sky-200 border-l border-ink-700/50 hover:bg-sky-900/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Send Code
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-px bg-ink-700/40" />
-            <span className="text-xs text-ink-500 uppercase tracking-wider">or with email</span>
-            <div className="flex-1 h-px bg-ink-700/40" />
-          </div>
-
-          {/* Email/password form */}
-          <form onSubmit={handleEmailSubmit} className="space-y-4">
+        {tab === 'email' ? (
+          <form onSubmit={handleEmailSubmit} className="space-y-4 max-w-md">
             {mode === 'signup' && (
-              <div>
-                <label className={labelClass}>Your Name</label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
-                  <input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className={inputClass}
-                    placeholder="Jane Doe"
-                    autoComplete="name"
-                  />
-                </div>
+              <div className="relative">
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9a8b78]" />
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className={inputClass}
+                  placeholder="Your name"
+                  autoComplete="name"
+                />
               </div>
             )}
 
-            <div>
-              <label className={labelClass}>Email</label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
-                <input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  type="email"
-                  required
-                  className={inputClass}
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                />
-              </div>
+            <div className="relative">
+              <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9a8b78]" />
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                type="email"
+                required
+                className={inputClass}
+                placeholder="Email address"
+                autoComplete="email"
+              />
             </div>
 
-            <div>
-              <label className={labelClass}>Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
-                <input
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  minLength={6}
-                  className={`${inputClass} pr-11`}
-                  placeholder="At least 6 characters"
-                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-500 hover:text-ink-300 transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9a8b78]" />
+              <input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                type="password"
+                required
+                minLength={6}
+                className={inputClass}
+                placeholder="Password"
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              />
             </div>
 
-            {/* Error message */}
+            <div className="flex items-center justify-between text-sm text-[#5c4d3d] pt-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  className="rounded border-[#c9b08a] text-[#6b4423] focus:ring-[#8b5a2b] accent-[#6b4423]"
+                />
+                Remember me
+              </label>
+              <button type="button" className="underline decoration-[#8b5a2b] underline-offset-2 hover:text-[#3d2f24]">
+                Forgot password?
+              </button>
+            </div>
+
             {error && (
-              <div className="text-xs text-red-400 bg-red-900/20 border border-red-800/30 rounded-lg px-3 py-2.5 animate-fade-in">
+              <div className="text-xs text-red-700 bg-red-100/80 border border-red-300/50 rounded-lg px-3 py-2">
                 {error}
               </div>
             )}
 
-            {/* Submit button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold text-ink-900 bg-gradient-to-r from-wardrobe-accent-gold to-amber-300 hover:shadow-lg hover:shadow-wardrobe-accent-gold/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+              className="w-full py-3 rounded-md text-sm font-medium text-[#faf6ee] bg-[#6b4423] hover:bg-[#5a381c] disabled:opacity-50"
             >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 border-2 border-ink-900/30 border-t-ink-900 rounded-full animate-spin" />
-                  Please wait...
-                </span>
-              ) : (
-                <>
-                  {mode === 'login' ? 'Step Inside' : 'Create My Wardrobe'}
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
+              {loading ? 'Please wait…' : mode === 'login' ? 'Login' : 'Create account'}
             </button>
           </form>
+        ) : (
+          <form onSubmit={otpSent ? handleVerifyOtp : (e) => { e.preventDefault(); void handleSendOtp(); }} className="space-y-4 max-w-md">
+            <div className="relative">
+              <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9a8b78]" />
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                type="tel"
+                required
+                disabled={otpSent}
+                className={inputClass}
+                placeholder="Mobile (+91…)"
+                autoComplete="tel"
+              />
+            </div>
 
-          {/* Footer note */}
-          <p className="text-center text-xs text-ink-500 mt-5">
-            {mode === 'login' ? (
-              <>
-                New here?{' '}
-                <button onClick={() => switchMode('signup')} className="text-wardrobe-accent-gold hover:text-amber-300 transition-colors font-medium">
-                  Create your profile
-                </button>
-              </>
-            ) : (
-              <>
-                Already have an account?{' '}
-                <button onClick={() => switchMode('login')} className="text-wardrobe-accent-gold hover:text-amber-300 transition-colors font-medium">
-                  Welcome back
-                </button>
-              </>
+            {otpSent && (
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9a8b78]" />
+                <input
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  inputMode="numeric"
+                  required
+                  className={inputClass}
+                  placeholder="6-digit OTP"
+                  autoComplete="one-time-code"
+                />
+              </div>
             )}
+
+            {debugOtp && (
+              <p className="text-[11px] text-[#6b5a48] bg-[#f0e4d0] rounded-lg px-3 py-2">
+                Dev code: <strong>{debugOtp}</strong> (SMS provider not configured yet)
+              </p>
+            )}
+
+            {error && (
+              <div className="text-xs text-red-700 bg-red-100/80 border border-red-300/50 rounded-lg px-3 py-2">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 rounded-md text-sm font-medium text-[#faf6ee] bg-[#6b4423] hover:bg-[#5a381c] disabled:opacity-50"
+            >
+              {loading ? 'Please wait…' : otpSent ? 'Verify & login' : 'Send OTP'}
+            </button>
+
+            {otpSent && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOtpSent(false);
+                  setOtp('');
+                  setDebugOtp(null);
+                }}
+                className="w-full text-xs text-[#6b5a48] underline"
+              >
+                Change number
+              </button>
+            )}
+          </form>
+        )}
+
+        {tab === 'email' && (
+          <p className="text-sm text-[#5c4d3d] mt-5">
+            Don&apos;t have an account?{' '}
+            <button
+              type="button"
+              onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+              className="font-semibold text-[#8b3d1a] hover:underline"
+            >
+              Click here
+            </button>
           </p>
+        )}
+
+        <div className="flex items-center gap-3 mt-6">
+          <a
+            href="https://www.apple.com/app-store/"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 bg-black text-white rounded-md px-3 py-1.5 text-[11px] leading-tight"
+          >
+            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" aria-hidden="true">
+              <path d="M16.37 12.64c-.03-2.23 1.82-3.3 1.9-3.35-1.04-1.52-2.66-1.73-3.23-1.75-1.37-.14-2.68.81-3.38.81-.7 0-1.77-.79-2.91-.77-1.5.02-2.88.87-3.65 2.21-1.56 2.71-.4 6.72 1.12 8.92.74 1.08 1.63 2.28 2.79 2.24 1.12-.05 1.54-.72 2.89-.72 1.35 0 1.73.72 2.91.7 1.2-.02 1.97-1.1 2.7-2.18.85-1.24 1.2-2.45 1.22-2.51-.03-.01-2.33-.89-2.36-3.6ZM14.5 6.9c.62-.75 1.03-1.79.92-2.83-.89.04-1.97.6-2.61 1.35-.57.66-1.07 1.73-.93 2.74 1 .08 2.01-.51 2.62-1.26Z" />
+            </svg>
+            <span>
+              Download on the
+              <br />
+              <span className="text-sm font-semibold">App Store</span>
+            </span>
+          </a>
+          <a
+            href="https://play.google.com/store"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 bg-black text-white rounded-md px-3 py-1.5 text-[11px] leading-tight"
+          >
+            <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
+              <path fill="#34A853" d="M3 20.5 8.3 12 3 3.5v17Z" />
+              <path fill="#FBBC04" d="M3 3.5 12 10.2 21 3.5H3Z" />
+              <path fill="#4285F4" d="M21 3.5 12 10.2 14.8 12 21 20.5V3.5Z" />
+              <path fill="#EA4335" d="M3 20.5 12 13.8 21 20.5H3Z" />
+            </svg>
+            <span>
+              GET IT ON
+              <br />
+              <span className="text-sm font-semibold">Google Play</span>
+            </span>
+          </a>
         </div>
 
-        {/* Tagline */}
-        <div className="text-center mt-6 flex items-center justify-center gap-1.5 text-xs text-ink-600">
-          <Sparkles className="w-3 h-3 text-wardrobe-accent-gold/40" />
-          <span>Where style meets organization</span>
-        </div>
-      </div>
-      </div>
+        <button
+          type="button"
+          onClick={() => void runAuth(() => authProvider.signInWithGoogle())}
+          disabled={loading}
+          className="mt-4 text-sm text-[#6b5a48] hover:text-[#3d2f24] underline underline-offset-2"
+        >
+          Continue with Google
+        </button>
+      </DesignSplitLayout>
     </div>
   );
 }

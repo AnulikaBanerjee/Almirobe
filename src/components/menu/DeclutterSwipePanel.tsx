@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Heart, Trash2 } from 'lucide-react';
+import { Heart, Package } from 'lucide-react';
 import type { WardrobeCollection, WardrobeItem } from '@/types';
 import { getUnwornItems, markItemWornToday, monthsSinceWorn } from '@/reports/wearTracking';
 import ItemImage from '@/components/ItemImage';
@@ -10,16 +10,17 @@ interface DeclutterSwipePanelProps {
   items: WardrobeItem[];
   collections: WardrobeCollection[];
   onKeep: (item: WardrobeItem) => void;
-  onThrowAway: (itemId: string) => void;
+  /** Moves the item into the donation box (does not delete it). */
+  onDonate: (item: WardrobeItem) => void;
 }
 
 export default function DeclutterSwipePanel({
   items,
   collections,
   onKeep,
-  onThrowAway,
+  onDonate,
 }: DeclutterSwipePanelProps) {
-  const [months, setMonths] = useState(6);
+  const [months, setMonths] = useState(3);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -27,7 +28,9 @@ export default function DeclutterSwipePanel({
   const dragOrigin = useRef(0);
 
   const queue = useMemo(() => {
-    return getUnwornItems(items, months).filter((i) => !dismissed.has(i.id));
+    return getUnwornItems(items, months).filter(
+      (i) => !dismissed.has(i.id) && !i.markedForDonation
+    );
   }, [items, months, dismissed]);
 
   const current = queue[0];
@@ -42,9 +45,14 @@ export default function DeclutterSwipePanel({
     setDragX(0);
   };
 
-  const handleThrow = () => {
+  const handleDonate = () => {
     if (!current) return;
-    onThrowAway(current.id);
+    onDonate({
+      ...current,
+      markedForDonation: true,
+      donationMarkedAt: Date.now(),
+      inLaundry: false,
+    });
     setDismissed((prev) => new Set(prev).add(current.id));
     setDragX(0);
   };
@@ -68,18 +76,18 @@ export default function DeclutterSwipePanel({
     const x = dragOrigin.current + (e.clientX - dragStartX.current);
     setDragX(0);
     if (x > 80) handleKeep();
-    else if (x < -80) handleThrow();
+    else if (x < -80) handleDonate();
   };
 
   const rotation = dragX * 0.05;
   const keepOpacity = Math.min(1, Math.max(0, dragX / 80));
-  const throwOpacity = Math.min(1, Math.max(0, -dragX / 80));
+  const donateOpacity = Math.min(1, Math.max(0, -dragX / 80));
 
   return (
     <div className="space-y-4">
       <p className="text-xs text-ink-400">
         Review items you haven&apos;t worn recently. Swipe <strong className="text-emerald-400">right to keep</strong> or{' '}
-        <strong className="text-red-400">left to remove</strong>. Wear tracking improves as you log outfits.
+        <strong className="text-amber-400">left to donate</strong>. Donated pieces move to the Donation Box.
       </p>
 
       <div>
@@ -109,10 +117,10 @@ export default function DeclutterSwipePanel({
         <>
           <div className="relative h-72 flex items-center justify-center">
             <span
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-red-400 font-bold text-sm border-2 border-red-400 rounded-lg px-2 py-1 rotate-[-12deg] transition-opacity"
-              style={{ opacity: throwOpacity }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-500 font-bold text-sm border-2 border-amber-500 rounded-lg px-2 py-1 rotate-[-12deg] transition-opacity"
+              style={{ opacity: donateOpacity }}
             >
-              REMOVE
+              DONATE
             </span>
             <span
               className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-400 font-bold text-sm border-2 border-emerald-400 rounded-lg px-2 py-1 rotate-[12deg] transition-opacity"
@@ -151,11 +159,11 @@ export default function DeclutterSwipePanel({
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={handleThrow}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-400/40 text-red-400 hover:bg-red-400/10 text-sm"
+              onClick={handleDonate}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-amber-400/40 text-amber-600 hover:bg-amber-400/10 text-sm"
             >
-              <Trash2 className="w-4 h-4" />
-              Remove
+              <Package className="w-4 h-4" />
+              Donate
             </button>
             <button
               type="button"

@@ -1,0 +1,62 @@
+{
+  "autoSelectMinConfidence": 0.55,
+  "types": [
+    { "value": "shirt", "label": "Shirt" },
+    { "value": "t-shirt", "label": "T-shirt" },
+    { "value": "kurta", "label": "Kurta" },
+    { "value": "kurti", "label": "Kurti" },
+    { "value": "saree", "label": "Saree" },
+    { "value": "dress", "label": "Dress" },
+    { "value": "jeans", "label": "Jeans" },
+    { "value": "formal-pant", "label": "Formal pant" },
+    { "value": "half-pant", "label": "Half pant" },
+    { "value": "skirt", "label": "Skirt" },
+    { "value": "jacket", "label": "Jacket" },
+    { "value": "sweater", "label": "Sweater" },
+    { "value": "shoes", "label": "Shoes" },
+    { "value": "sandals", "label": "Sandals" },
+    { "value": "heels", "label": "Heels" },
+    { "value": "sneakers", "label": "Sneakers" },
+    { "value": "bag", "label": "Bag" },
+    { "value": "jewellery", "label": "Jewellery" },
+    { "value": "other", "label": "Other" }
+  ],
+  "shirtSubtypes": [
+    { "value": "full-sleeve", "label": "Full sleeve" },
+    { "value": "half-sleeve", "label": "Half sleeve" },
+    { "value": "sleeveless", "label": "Sleeveless" },
+    { "value": "chinese-collar", "label": "Chinese collar" },
+    { "value": "collar", "label": "Collar" },
+    { "value": "round-neck", "label": "Round neck" },
+    { "value": "v-neck", "label": "V-neck" }
+  ],
+  "pantSubtypes": [
+    { "value": "formal", "label": "Formal" },
+    { "value": "jeans", "label": "Jeans" },
+    { "value": "chinos", "label": "Chinos" },
+    { "value": "half-pant", "label": "Half pant" },
+    { "value": "jeggings", "label": "Jeggings" }
+  ],
+  "shoeSubtypes": [
+    { "value": "sneakers", "label": "Sneakers" },
+    { "value": "formal", "label": "Formal" },
+    { "value": "sandals", "label": "Sandals" },
+    { "value": "heels", "label": "Heels" },
+    { "value": "kolhapuri", "label": "Kolhapuri" },
+    { "value": "sports", "label": "Sports" }
+  ],
+  "occasions": [
+    { "value": "office", "label": "Office" },
+    { "value": "party", "label": "Party" },
+    { "value": "house", "label": "House" },
+    { "value": "casual", "label": "Casual" },
+    { "value": "ethnic", "label": "Ethnic" },
+    { "value": "festive", "label": "Festive" }
+  ],
+  "weather": [
+    { "value": "summer", "label": "Summer" },
+    { "value": "monsoon", "label": "Monsoon" },
+    { "value": "winter", "label": "Winter" },
+    { "value": "all", "label": "All weather" }
+  ]
+}

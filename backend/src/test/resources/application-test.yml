@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:almirobe}
+    username: ${POSTGRES_USER:almirobe}
+    password: ${POSTGRES_PASSWORD:almirobe}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+almirobe:
+  cors:
+    allowed-origins: http://localhost:5173
+  jwt:
+    issuer: almirobe-test
+    access-token-ttl: PT15M
+    refresh-token-ttl: P7D
+    secret: test-jwt-secret-must-be-at-least-32-characters-long
+  google:
+    client-id: test-google-client-id.apps.googleusercontent.com
+  redis:
+    enabled: false
+    host: localhost
+    port: 6379
+    queue-tags: almirobe:jobs:tags
+    queue-extract: almirobe:jobs:extract
+    result-prefix: "almirobe:job:"
+  storage:
+    enabled: false
+    endpoint: http://localhost:9000
+    region: us-east-1
+    bucket: almirobe
+    access-key: test
+    secret-key: test-secret
+    presign-ttl: PT15M

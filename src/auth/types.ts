@@ -12,6 +12,13 @@ export interface EmailAuthInput {
   name?: string;
 }
 
+export interface PhoneOtpSendResult {
+  phone: string;
+  expiresInSeconds: number;
+  /** Present in local/dev so you can complete OTP without SMS. */
+  debugCode?: string | null;
+}
+
 /**
  * Pluggable authentication layer. Implement for demo, Supabase, etc.
  * UI components depend on this interface — not on a specific provider SDK.
@@ -21,8 +28,9 @@ export interface AuthProvider {
   readonly isDemo: boolean;
   signInWithEmail(input: EmailAuthInput, mode: AuthMode): Promise<AuthUser>;
   signInWithGoogle(): Promise<AuthUser>;
-  signInWithPhone(phone: string): Promise<AuthUser>;
+  requestPhoneOtp(phone: string): Promise<PhoneOtpSendResult>;
+  verifyPhoneOtp(phone: string, code: string): Promise<AuthUser>;
   signOut(): Promise<void>;
 }
 
-export type AuthProviderKind = 'demo';
+export type AuthProviderKind = 'demo' | 'api';

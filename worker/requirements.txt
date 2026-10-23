@@ -1,0 +1,8 @@
+redis==5.2.1
+boto3==1.35.99
+pillow==11.1.0
+numpy==2.2.2
+opencv-python-headless==4.11.0.86
+rembg==2.0.61
+onnxruntime==1.20.1
+scikit-learn==1.6.1

@@ -2,8 +2,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import type { AuthUser } from '@/auth';
-import type { StoredProfile } from '@/menu/menuStorage';
+import {
+  addManagedProfile,
+  deleteManagedProfile,
+  type StoredProfile,
+} from '@/menu/menuStorage';
 import SwitchProfilePanel from '@/components/menu/SwitchProfilePanel';
+import ConfirmDialog from '@/components/layout/ConfirmDialog';
 
 interface SwitchProfilePopoverProps {
   anchorRef: React.RefObject<HTMLElement | null>;
@@ -11,6 +16,7 @@ interface SwitchProfilePopoverProps {
   profiles: StoredProfile[];
   onClose: () => void;
   onSwitch: (profile: AuthUser) => void;
+  onProfilesChange: (profiles: StoredProfile[]) => void;
 }
 
 function clampPosition(top: number, left: number, width: number, height: number) {
@@ -29,9 +35,11 @@ export default function SwitchProfilePopover({
   profiles,
   onClose,
   onSwitch,
+  onProfilesChange,
 }: SwitchProfilePopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [pendingDelete, setPendingDelete] = useState<StoredProfile | null>(null);
 
   useLayoutEffect(() => {
     const anchor = anchorRef.current;
@@ -50,12 +58,18 @@ export default function SwitchProfilePopover({
 
   useEffect(() => {
     const handlePointerDown = (e: PointerEvent) => {
+      if (pendingDelete) return;
       const target = e.target as Node;
       if (anchorRef.current?.contains(target) || popoverRef.current?.contains(target)) return;
       onClose();
     };
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      if (pendingDelete) {
+        setPendingDelete(null);
+        return;
+      }
+      onClose();
     };
     document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('keydown', handleKey);
@@ -63,18 +77,20 @@ export default function SwitchProfilePopover({
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKey);
     };
-  }, [anchorRef, onClose]);
+  }, [anchorRef, onClose, pendingDelete]);
 
-  return createPortal(
+  return (
+    <>
+      {createPortal(
     <div
       ref={popoverRef}
       className="fixed z-[210] w-72 rounded-xl border border-ink-700 bg-ink-800 shadow-2xl animate-scale-in origin-top-left"
       style={{ top: pos.top, left: pos.left }}
       role="dialog"
-      aria-label="Switch profile"
+      aria-label="Manage profiles"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-ink-700">
-        <p className="text-sm font-medium text-ink-100">Switch Profile</p>
+        <p className="text-sm font-medium text-ink-100">Manage profiles</p>
         <button type="button" onClick={onClose} className="text-ink-400 hover:text-ink-200">
           <X className="w-4 h-4" />
         </button>
@@ -87,9 +103,31 @@ export default function SwitchProfilePopover({
             onSwitch(profile);
             onClose();
           }}
+          onAdd={(label) => {
+            const created = addManagedProfile(label);
+            onProfilesChange([...profiles, created]);
+          }}
+          onRequestDelete={setPendingDelete}
         />
       </div>
     </div>,
-    document.body
+        document.body
+      )}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete profile"
+        message={
+          pendingDelete
+            ? `Delete “${pendingDelete.label}”? This only removes the profile from this list.`
+            : ''
+        }
+        confirmLabel="Delete"
+        onClose={() => setPendingDelete(null)}
+        onConfirm={() => {
+          if (!pendingDelete) return;
+          onProfilesChange(deleteManagedProfile(pendingDelete.id));
+        }}
+      />
+    </>
   );
 }

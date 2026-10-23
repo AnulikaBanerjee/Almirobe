@@ -6,7 +6,7 @@ import ItemImage from '@/components/ItemImage';
 import ModalPortal from '@/components/ModalPortal';
 
 interface CreateLookModalProps {
-  primaryItem: WardrobeItem;
+  primaryItem?: WardrobeItem;
   existingLook?: Look;
   allItems: WardrobeItem[];
   allCollections: WardrobeCollection[];
@@ -46,14 +46,14 @@ export default function CreateLookModal({
   const [activeCollectionId, setActiveCollectionId] = useState<string>('all');
 
   const toggleItem = (id: string) => {
-    if (id === primaryItem.id) return;
+    if (primaryItem && id === primaryItem.id) return;
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
   const availableItems = allItems.filter((item) => {
-    if (item.id === primaryItem.id) return false;
+    if (primaryItem && item.id === primaryItem.id) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (!item.name.toLowerCase().includes(q) && !item.brand.toLowerCase().includes(q)) return false;
@@ -63,14 +63,18 @@ export default function CreateLookModal({
   });
 
   const selectedItems = allItems.filter((item) => selectedIds.includes(item.id));
-  const allLookItems = [primaryItem, ...selectedItems];
+  const allLookItems = [...(primaryItem ? [primaryItem] : []), ...selectedItems];
 
   const handleSave = () => {
-    const name = lookName.trim() || `${primaryItem.name} Look`;
+    const primaryId = primaryItem?.id ?? selectedIds[0];
+    if (!primaryId) return;
+    const name =
+      lookName.trim() ||
+      (primaryItem ? `${primaryItem.name} Look` : 'Untitled Look');
     onSave(
       buildLookFromDraft({
-        primaryItemId: primaryItem.id,
-        itemIds: selectedIds,
+        primaryItemId: primaryId,
+        itemIds: selectedIds.filter((id) => id !== primaryId),
         name,
         existingLook,
         notes: existingLook?.notes,
@@ -117,7 +121,7 @@ export default function CreateLookModal({
                         {findCategoryLabel(collection, item.categoryId)}
                       </span>
                     </div>
-                    {item.id !== primaryItem.id && (
+                    {(!primaryItem || item.id !== primaryItem.id) && (
                       <button
                         onClick={() => toggleItem(item.id)}
                         className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -125,7 +129,7 @@ export default function CreateLookModal({
                         <X className="w-3 h-3" />
                       </button>
                     )}
-                    {item.id === primaryItem.id && (
+                    {primaryItem && item.id === primaryItem.id && (
                       <div className="absolute -top-1.5 -right-1.5 px-1.5 h-5 rounded-full bg-wardrobe-accent-gold text-ink-900 text-[8px] font-bold flex items-center justify-center">
                         MAIN
                       </div>

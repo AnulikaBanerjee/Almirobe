@@ -142,7 +142,7 @@ export default function LooksGallery({
           className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium text-ink-900 bg-gradient-to-r from-wardrobe-accent-gold to-amber-300 hover:shadow-lg hover:shadow-wardrobe-accent-gold/30 transition-all"
         >
           <Plus className="w-4 h-4" />
-          New Look
+          Create New Look
         </button>
       </div>
 

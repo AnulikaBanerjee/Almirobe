@@ -1,4 +1,4 @@
-# My Wardrobe
+# Almirobe
 
 A React + TypeScript wardrobe organizer with looks, laundry tracking, and photo uploads.
 

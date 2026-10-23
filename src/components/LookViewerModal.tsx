@@ -60,6 +60,34 @@ export default function LookViewerModal({
         </div>
 
         <div className="p-5 space-y-5">
+          {look.layout && look.layout.length > 0 && (
+            <div className="relative w-full aspect-[4/3] rounded-xl bg-ink-950/70 border border-ink-700/50 overflow-hidden">
+              {[...look.layout]
+                .sort((a, b) => a.z - b.z)
+                .map((piece, index) => {
+                  const item = piece.itemId ? allItems.find((entry) => entry.id === piece.itemId) : undefined;
+                  return (
+                    <div
+                      key={`${piece.itemId ?? piece.imageUrl ?? 'piece'}-${index}`}
+                      className="absolute overflow-hidden rounded-lg border border-ink-600/70 bg-ink-900"
+                      style={{
+                        left: `${piece.x * 100}%`,
+                        top: `${piece.y * 100}%`,
+                        width: `${piece.w * 100}%`,
+                        height: `${piece.h * 100}%`,
+                        zIndex: piece.z,
+                      }}
+                    >
+                      {item ? (
+                        <ItemImage item={item} alt={item.name} className="w-full h-full object-cover" />
+                      ) : piece.imageUrl ? (
+                        <img src={piece.imageUrl} alt={piece.label ?? 'Linked item'} className="w-full h-full object-cover" />
+                      ) : null}
+                    </div>
+                  );
+                })}
+            </div>
+          )}
           {/* Primary item — large display */}
           {primaryItem && (
             <div>
@@ -120,11 +148,10 @@ export default function LookViewerModal({
             </div>
           )}
 
-          {/* Notes */}
           {look.notes && (
             <div>
               <p className="text-xs text-ink-500 uppercase tracking-wider mb-1">Notes</p>
-              <p className="text-sm text-ink-300 leading-relaxed">{look.notes}</p>
+              <p className="text-sm text-ink-300 leading-relaxed whitespace-pre-wrap">{look.notes}</p>
             </div>
           )}
         </div>

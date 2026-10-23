@@ -24,3 +24,10 @@ dist-ssr
 data/uploads/*
 !data/uploads/.gitkeep
 data/wardrobe-data*.json
+
+# Python virtual environments
+worker/.venv/
+.venv/
+venv/
+__pycache__/
+*.py[cod]

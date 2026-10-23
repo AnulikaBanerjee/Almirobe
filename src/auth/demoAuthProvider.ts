@@ -1,6 +1,7 @@
-import type { AuthMode, AuthProvider, AuthUser, EmailAuthInput } from '@/auth/types';
+import type { AuthMode, AuthProvider, AuthUser, EmailAuthInput, PhoneOtpSendResult } from '@/auth/types';
 
 const DEMO_SIGN_IN_DELAY_MS = 600;
+const DEMO_OTP = '123456';
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -33,8 +34,20 @@ export class DemoAuthProvider implements AuthProvider {
     return buildDemoUser('Me', 'me@demo.local');
   }
 
-  async signInWithPhone(phone: string): Promise<AuthUser> {
+  async requestPhoneOtp(phone: string): Promise<PhoneOtpSendResult> {
+    await delay(400);
+    return {
+      phone,
+      expiresInSeconds: 300,
+      debugCode: DEMO_OTP,
+    };
+  }
+
+  async verifyPhoneOtp(phone: string, code: string): Promise<AuthUser> {
     await delay(DEMO_SIGN_IN_DELAY_MS);
+    if (code.trim() !== DEMO_OTP) {
+      throw new Error('Incorrect code. Demo OTP is 123456.');
+    }
     const digits = phone.replace(/\D/g, '');
     const displayName = digits.length >= 4 ? `Guest •••${digits.slice(-4)}` : 'Me';
     const email = digits ? `phone-${digits}@demo.local` : 'phone@demo.local';
