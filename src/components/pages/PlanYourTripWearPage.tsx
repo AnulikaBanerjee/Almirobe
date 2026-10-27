@@ -12,6 +12,7 @@ import {
 
 interface PlanYourTripWearPageProps {
   userId: string;
+  profileId?: string;
   items: WardrobeItem[];
   collections: WardrobeCollection[];
   onBack: () => void;
@@ -41,11 +42,12 @@ function newTrip(): TripPlan {
 
 export default function PlanYourTripWearPage({
   userId,
+  profileId,
   items,
   collections,
   onBack,
 }: PlanYourTripWearPageProps) {
-  const [trips, setTrips] = useState<TripPlan[]>(() => loadTripPlans(userId));
+  const [trips, setTrips] = useState<TripPlan[]>(() => loadTripPlans(userId, profileId));
   const [activeId, setActiveId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
@@ -53,8 +55,8 @@ export default function PlanYourTripWearPage({
   const { listening, error: speechError, start, stop, supported } = useSpeechToText('en-IN');
 
   useEffect(() => {
-    saveTripPlans(userId, trips);
-  }, [userId, trips]);
+    saveTripPlans(userId, trips, profileId);
+  }, [userId, profileId, trips]);
 
   const active = trips.find((t) => t.id === activeId) ?? null;
 

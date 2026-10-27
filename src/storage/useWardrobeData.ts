@@ -80,7 +80,26 @@ export function useWardrobeData(provider: WardrobeStorageProvider): UseWardrobeD
       try {
         const loaded = await provider.load();
         if (cancelled) return;
-        setData(loaded ?? createDefaultWardrobeData());
+        const fallback = createDefaultWardrobeData();
+        const safeData: WardrobeData = loaded
+          ? {
+              ...fallback,
+              ...loaded,
+              collections:
+                Array.isArray(loaded.collections) && loaded.collections.length > 0
+                  ? loaded.collections
+                  : fallback.collections,
+              items: Array.isArray(loaded.items) ? loaded.items : fallback.items,
+              looks: Array.isArray(loaded.looks) ? loaded.looks : fallback.looks,
+              loftBoxes: Array.isArray(loaded.loftBoxes) ? loaded.loftBoxes : fallback.loftBoxes,
+              gifts: Array.isArray(loaded.gifts) ? loaded.gifts : fallback.gifts,
+              activeCollectionId:
+                typeof loaded.activeCollectionId === 'string' && loaded.activeCollectionId
+                  ? loaded.activeCollectionId
+                  : fallback.activeCollectionId,
+            }
+          : fallback;
+        setData(safeData);
         setStorageError(null);
       } catch {
         if (cancelled) return;

@@ -1,7 +1,13 @@
 import { normalizeWardrobeData } from '@/storage/normalize';
 import type { WardrobeData, WardrobeStorageProvider } from '@/storage/types';
 
-const STORAGE_KEY = 'my-wardrobe-data-v1';
+function storageKey(profileId: string): string {
+  return `my-wardrobe-data-v1-${profileId}`;
+}
+
+function legacyStorageKey(): string {
+  return 'my-wardrobe-data-v1';
+}
 
 function isWardrobeData(value: unknown): value is WardrobeData {
   if (!value || typeof value !== 'object') return false;
@@ -16,27 +22,50 @@ function isWardrobeData(value: unknown): value is WardrobeData {
 
 export class LocalStorageProvider implements WardrobeStorageProvider {
   readonly id = 'local';
+  private readonly profileId: string;
+
+  constructor(profileId: string = 'default') {
+    this.profileId = profileId;
+  }
 
   async load(): Promise<WardrobeData | null> {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return null;
+      const profileKey = storageKey(this.profileId);
+      const profileRaw = localStorage.getItem(profileKey);
+      if (profileRaw) {
+        const parsed: unknown = JSON.parse(profileRaw);
+        if (isWardrobeData(parsed)) {
+          return normalizeWardrobeData(parsed);
+        }
+      }
 
-      const parsed: unknown = JSON.parse(raw);
+      const legacyRaw = localStorage.getItem(legacyStorageKey());
+      if (!legacyRaw) return null;
+
+      const parsed: unknown = JSON.parse(legacyRaw);
       if (!isWardrobeData(parsed)) return null;
 
-      return normalizeWardrobeData(parsed);
+      const normalized = normalizeWardrobeData(parsed);
+      localStorage.setItem(profileKey, JSON.stringify(normalized));
+      return normalized;
     } catch {
       return null;
     }
   }
 
   async save(data: WardrobeData): Promise<void> {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    const profileKey = storageKey(this.profileId);
+    localStorage.setItem(profileKey, JSON.stringify(data));
+    if (this.profileId !== 'default') {
+      localStorage.setItem(legacyStorageKey(), JSON.stringify(data));
+    }
   }
 
   /** Useful for tests or a future "reset wardrobe" action. */
   async clear(): Promise<void> {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(storageKey(this.profileId));
+    if (this.profileId !== 'default') {
+      localStorage.removeItem(legacyStorageKey());
+    }
   }
 }
