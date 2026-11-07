@@ -39,6 +39,9 @@ public class EmailDeliverabilityValidator {
             throw new ApiException("INVALID_EMAIL", "Enter a valid email address", HttpStatus.BAD_REQUEST);
         }
         String domain = normalized.substring(at + 1);
+        if (isInternalTestDomain(domain)) {
+            return;
+        }
         if (DISPOSABLE.contains(domain)) {
             throw new ApiException(
                     "DISPOSABLE_EMAIL",
@@ -51,6 +54,11 @@ public class EmailDeliverabilityValidator {
                     "That email domain does not appear to accept mail. Check for typos.",
                     HttpStatus.BAD_REQUEST);
         }
+    }
+
+    private boolean isInternalTestDomain(String domain) {
+        return "almirobe.local".equalsIgnoreCase(domain)
+                || domain != null && domain.toLowerCase(Locale.ROOT).endsWith(".almirobe.local");
     }
 
     private boolean domainLooksResolvable(String domain) {

@@ -13,7 +13,6 @@ import {
 import type { GiftRecord, LoftBox, WardrobeItem, WardrobeCollection, Look } from '@/types';
 import { createStorageProvider, useWardrobeData } from '@/storage';
 import { useAuthSession } from '@/auth/AuthSessionContext';
-import type { AuthUser } from '@/auth';
 import {
   buildUpdatedCollection,
   deleteCollectionState,
@@ -36,7 +35,6 @@ import LoginScreen from '@/components/LoginScreen';
 import DemoModeBanner from '@/components/DemoModeBanner';
 import WelcomeScreen from '@/components/WelcomeScreen';
 import OnboardingModal from '@/components/OnboardingModal';
-import ModalPortal from '@/components/ModalPortal';
 import AppMenu from '@/components/AppMenu';
 import LentBorrowedView from '@/components/LentBorrowedView';
 import GiftRecorderView from '@/components/GiftRecorderView';
@@ -55,7 +53,6 @@ import PlanWithFriendsPage from '@/components/pages/PlanWithFriendsPage';
 import PlanYourTripWearPage from '@/components/pages/PlanYourTripWearPage';
 import UniversalSearchModal from '@/components/UniversalSearchModal';
 import OrnatePageFrame from '@/components/layout/OrnatePageFrame';
-import ItemImage from '@/components/ItemImage';
 import { addActivity, ensureProfilesForUser } from '@/menu/menuStorage';
 import { markItemWornToday } from '@/reports/wearTracking';
 import {
@@ -81,7 +78,10 @@ function App() {
     activeProfileId,
   } = useAuthSession();
   const profileId = activeProfileId ?? user?.id ?? '__guest__';
-  const storageProvider = useMemo(() => createStorageProvider('local', profileId), [profileId]);
+  const storageProvider = useMemo(
+    () => createStorageProvider(authProvider.id === 'api' ? 'api' : 'local', profileId),
+    [authProvider.id, profileId]
+  );
   const {
     collections,
     items,
@@ -136,18 +136,19 @@ function App() {
     setView(lookEditorReturnView);
   };
 
-  const activeCollection = collections.find((c) => c.id === activeCollectionId) ?? collections[0];
+  const activeCollection =
+    collections.find((c) => c.id === activeCollectionId) ?? collections[0] ?? null;
   const editingCollection =
     wardrobeForm?.mode === 'edit'
-      ? collections.find((c) => c.id === wardrobeForm.collectionId)
-      : undefined;
+      ? collections.find((c) => c.id === wardrobeForm.collectionId) ?? null
+      : null;
 
   const collectionItems = useMemo(
     () =>
-      items.filter(
-        (item) => item.collectionId === activeCollectionId && !item.loftBoxId
-      ),
-    [items, activeCollectionId]
+      activeCollection
+        ? items.filter((item) => item.collectionId === activeCollection.id && !item.loftBoxId)
+        : [],
+    [items, activeCollection]
   );
 
   const itemCounts = useMemo(() => {
@@ -165,7 +166,7 @@ function App() {
   const laundryCount = items.filter((i) => i.inLaundry).length;
   const lentCount = items.filter((i) => i.lentStatus).length;
   const giftCount = gifts.length + items.filter((item) => item.isGift).length;
-  const ActiveIcon = getWardrobeIcon(activeCollection.icon);
+  const ActiveIcon = activeCollection ? getWardrobeIcon(activeCollection.icon) : null;
 
   const detailItem = detailItemId ? items.find((i) => i.id === detailItemId) ?? null : null;
   const detailCollection = detailItem
@@ -260,10 +261,12 @@ function App() {
 
   const handleAddItem = (item: WardrobeItem) => {
     setItems((prev) => [...prev, item]);
+    void storageProvider.saveItem?.(item);
   };
 
   const handleEditItem = (updated: WardrobeItem) => {
     setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    void storageProvider.saveItem?.(updated);
   };
 
   const handleToggleFavorite = (id: string) => {
@@ -289,6 +292,7 @@ function App() {
 
   const handleSaveLook = (look: Look) => {
     setLooks((prev) => upsertLook(prev, look));
+    void storageProvider.saveLook?.(look);
   };
 
   const handleDeleteLook = (lookId: string) => {
@@ -319,6 +323,7 @@ function App() {
         ? previous.map((entry) => (entry.id === gift.id ? gift : entry))
         : [...previous, gift];
     });
+    void storageProvider.saveGift?.(gift);
   };
 
   const handleDeleteGift = (id: string) => {
@@ -379,6 +384,7 @@ function App() {
       if (exists) return prev.map((b) => (b.id === box.id ? box : b));
       return [...prev, box];
     });
+    void storageProvider.saveLoftBox?.(box);
   };
 
   const handleDeleteLoftBox = (boxId: string) => {
@@ -689,6 +695,7 @@ function App() {
         ) : view === 'plan-trip-wear' ? (
           <PlanYourTripWearPage
             userId={user.id}
+            profileId={activeProfileId ?? user.id}
             items={items}
             collections={collections}
             onBack={() => setView('wardrobe')}

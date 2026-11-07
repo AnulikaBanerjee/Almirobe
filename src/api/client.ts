@@ -330,6 +330,75 @@ export class ApiClient {
 
     return (await response.json()) as T;
   }
+
+  async getWardrobeSnapshot(): Promise<{ activeCollectionId: string; collections: unknown[]; items: unknown[]; looks: unknown[]; loftBoxes: unknown[]; gifts: unknown[] } | null> {
+    return this.request<{ activeCollectionId: string; collections: unknown[]; items: unknown[]; looks: unknown[]; loftBoxes: unknown[]; gifts: unknown[] } | null>('/api/v1/wardrobe', { method: 'GET' });
+  }
+
+  async saveWardrobeSnapshot(snapshot: {
+    activeCollectionId: string;
+    collections: unknown[];
+    items: unknown[];
+    looks: unknown[];
+    loftBoxes: unknown[];
+    gifts: unknown[];
+  }): Promise<void> {
+    await this.request<void>('/api/v1/wardrobe', {
+      method: 'POST',
+      body: JSON.stringify(snapshot),
+    });
+  }
+
+  async listItems(): Promise<Array<Record<string, unknown>>> {
+    return this.request<Array<Record<string, unknown>>>('/api/v1/items', { method: 'GET' });
+  }
+
+  async saveItem(item: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>('/api/v1/items', {
+      method: 'POST',
+      body: JSON.stringify(item),
+    });
+  }
+
+  async listLooks(): Promise<Array<Record<string, unknown>>> {
+    return this.request<Array<Record<string, unknown>>>('/api/v1/looks', { method: 'GET' });
+  }
+
+  async saveLook(look: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>('/api/v1/looks', {
+      method: 'POST',
+      body: JSON.stringify(look),
+    });
+  }
+
+  async listDonations(): Promise<Array<Record<string, unknown>>> {
+    return this.request<Array<Record<string, unknown>>>('/api/v1/donations', { method: 'GET' });
+  }
+
+  async createDonation(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>('/api/v1/donations', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async listLoftBoxes(): Promise<Array<Record<string, unknown>>> {
+    return this.request<Array<Record<string, unknown>>>('/api/v1/lofts', { method: 'GET' });
+  }
+
+  async saveLoftBox(loftBox: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>('/api/v1/lofts', {
+      method: 'POST',
+      body: JSON.stringify(loftBox),
+    });
+  }
+
+  async planTrip(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>('/api/v1/trip-plans', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
 }
 
 export const apiClient = new ApiClient();
