@@ -4,6 +4,20 @@ export type WardrobeDisplayMode = 'category' | 'shelf';
 
 export type LentStatus = 'lent' | 'borrowed';
 
+export type GiftDirection = 'received' | 'given';
+
+export interface GiftRecord {
+  id: string;
+  name: string;
+  direction: GiftDirection;
+  personName: string;
+  occasion: string;
+  date?: number;
+  notes?: string;
+  imageUrl?: string;
+  createdAt: number;
+}
+
 /** Storage box in the loft — holds out-of-season or packed-away clothes */
 export interface LoftBox {
   id: string;
@@ -47,6 +61,13 @@ export interface WardrobeItem {
   imageData?: string;
   /** Persistent image URL (local disk, Supabase, or indexeddb ref) */
   imageUrl?: string;
+  originalImageUrl?: string;
+  imageJobId?: string;
+  productType?: string;
+  subtype?: string;
+  pattern?: string;
+  occasion?: string;
+  weather?: string;
   /** Shelf index (0-based) when wardrobe uses shelf display mode */
   shelfIndex?: number;
   favorite: boolean;
@@ -60,6 +81,9 @@ export interface WardrobeItem {
   lentParty?: string;
   lentDate?: number;
   lentNotes?: string;
+  isGift?: boolean;
+  giftFrom?: string;
+  giftOccasion?: string;
   purchasePrice?: number;
   purchaseDate?: number;
   /** Updated when item is worn or marked via outfit logging */
@@ -68,12 +92,26 @@ export interface WardrobeItem {
   createdAt: number;
 }
 
+/** One piece on the look canvas. x/y/w/h are fractions of the canvas (0–1). z is paint order. */
+export interface LookPieceLayout {
+  itemId?: string;
+  imageUrl?: string;
+  label?: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  z: number;
+}
+
 export interface Look {
   id: string;
   name: string;
   primaryItemId: string;
   itemIds: string[];
   notes?: string;
+  /** Exact positions, sizes, and stacking the user arranged. */
+  layout?: LookPieceLayout[];
   createdAt: number;
 }
 

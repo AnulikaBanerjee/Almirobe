@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createDefaultWardrobeData } from '@/storage/defaults';
 import type { WardrobeData, WardrobeStorageProvider } from '@/storage/types';
-import type { Look, LoftBox, WardrobeCollection, WardrobeItem } from '@/types';
+import type { GiftRecord, Look, LoftBox, WardrobeCollection, WardrobeItem } from '@/types';
 
 const SAVE_DEBOUNCE_MS = 250;
 
@@ -10,6 +10,7 @@ interface UseWardrobeDataResult {
   items: WardrobeItem[];
   looks: Look[];
   loftBoxes: LoftBox[];
+  gifts: GiftRecord[];
   activeCollectionId: string;
   isLoading: boolean;
   storageError: string | null;
@@ -18,6 +19,7 @@ interface UseWardrobeDataResult {
   setItems: (updater: WardrobeItem[] | ((prev: WardrobeItem[]) => WardrobeItem[])) => void;
   setLooks: (updater: Look[] | ((prev: Look[]) => Look[])) => void;
   setLoftBoxes: (updater: LoftBox[] | ((prev: LoftBox[]) => LoftBox[])) => void;
+  setGifts: (updater: GiftRecord[] | ((prev: GiftRecord[]) => GiftRecord[])) => void;
 }
 
 function applyUpdater<T>(prev: T, updater: T | ((current: T) => T)): T {
@@ -78,7 +80,26 @@ export function useWardrobeData(provider: WardrobeStorageProvider): UseWardrobeD
       try {
         const loaded = await provider.load();
         if (cancelled) return;
-        setData(loaded ?? createDefaultWardrobeData());
+        const fallback = createDefaultWardrobeData();
+        const safeData: WardrobeData = loaded
+          ? {
+              ...fallback,
+              ...loaded,
+              collections:
+                Array.isArray(loaded.collections) && loaded.collections.length > 0
+                  ? loaded.collections
+                  : fallback.collections,
+              items: Array.isArray(loaded.items) ? loaded.items : fallback.items,
+              looks: Array.isArray(loaded.looks) ? loaded.looks : fallback.looks,
+              loftBoxes: Array.isArray(loaded.loftBoxes) ? loaded.loftBoxes : fallback.loftBoxes,
+              gifts: Array.isArray(loaded.gifts) ? loaded.gifts : fallback.gifts,
+              activeCollectionId:
+                typeof loaded.activeCollectionId === 'string' && loaded.activeCollectionId
+                  ? loaded.activeCollectionId
+                  : fallback.activeCollectionId,
+            }
+          : fallback;
+        setData(safeData);
         setStorageError(null);
       } catch {
         if (cancelled) return;
@@ -155,6 +176,13 @@ export function useWardrobeData(provider: WardrobeStorageProvider): UseWardrobeD
     []
   );
 
+  const setGifts = useCallback(
+    (updater: GiftRecord[] | ((prev: GiftRecord[]) => GiftRecord[])) => {
+      setData((prev) => ({ ...prev, gifts: applyUpdater(prev.gifts ?? [], updater) }));
+    },
+    []
+  );
+
   const setActiveCollectionId = useCallback((id: string) => {
     patchData({ activeCollectionId: id });
   }, [patchData]);
@@ -164,6 +192,7 @@ export function useWardrobeData(provider: WardrobeStorageProvider): UseWardrobeD
     items: data.items,
     looks: data.looks,
     loftBoxes: data.loftBoxes ?? [],
+    gifts: data.gifts ?? [],
     activeCollectionId: data.activeCollectionId,
     isLoading,
     storageError,
@@ -172,5 +201,6 @@ export function useWardrobeData(provider: WardrobeStorageProvider): UseWardrobeD
     setItems,
     setLooks,
     setLoftBoxes,
+    setGifts,
   };
 }

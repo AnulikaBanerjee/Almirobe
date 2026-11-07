@@ -1,4 +1,5 @@
-import { Briefcase, Sparkles } from 'lucide-react';
+import { Briefcase } from 'lucide-react';
+import AppLogo from '@/components/AppLogo';
 import ModalPortal from '@/components/ModalPortal';
 
 interface OnboardingModalProps {
@@ -12,10 +13,13 @@ export default function OnboardingModal({ onSetupSelf }: OnboardingModalProps) {
         className="bg-ink-800 border border-ink-700 rounded-2xl shadow-2xl w-full max-w-md p-8 text-center animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-wardrobe-accent-gold to-amber-700 flex items-center justify-center">
-          <Sparkles className="w-7 h-7 text-ink-900" />
-        </div>
-        <h2 className="font-serif text-2xl text-ink-50 mb-2">Welcome to My Wardrobe</h2>
+        <h2 className="font-serif text-2xl text-ink-50 mb-2 flex items-center justify-center gap-2.5 flex-wrap">
+          <span>Welcome to</span>
+          <span className="inline-flex items-center gap-2">
+            <AppLogo size="sm" />
+            Almirobe
+          </span>
+        </h2>
         <p className="text-sm text-ink-400 mb-8 leading-relaxed">
           How would you like to get started? You can organize your wardrobe yourself or book help from a
           professional stylist.

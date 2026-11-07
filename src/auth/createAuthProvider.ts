@@ -1,8 +1,10 @@
+import { ApiAuthProvider } from '@/auth/apiAuthProvider';
 import { DemoAuthProvider } from '@/auth/demoAuthProvider';
 import type { AuthProvider, AuthProviderKind } from '@/auth/types';
 
 function authProviderFromEnv(): AuthProviderKind {
   const value = import.meta.env.VITE_AUTH_PROVIDER;
+  if (value === 'api') return 'api';
   if (value === 'demo' || !value) return 'demo';
   console.warn(`Unknown VITE_AUTH_PROVIDER "${value}", falling back to demo.`);
   return 'demo';
@@ -19,6 +21,8 @@ export function createAuthProvider(kind: AuthProviderKind = authProviderFromEnv(
   switch (kind) {
     case 'demo':
       return new DemoAuthProvider();
+    case 'api':
+      return new ApiAuthProvider();
     default: {
       const _exhaustive: never = kind;
       return _exhaustive;

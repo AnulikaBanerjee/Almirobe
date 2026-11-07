@@ -1,15 +1,18 @@
 import { useRef, useState } from 'react';
 import { Camera, Image as ImageIcon, Loader2, Sparkles, X } from 'lucide-react';
-import { resizeImage } from '@/imageUtils';
+import { blobToDataUrl } from '@/imageProcessing/canvasUtils';
 import { useImageStorage } from '@/images';
-import ImageProcessingPreviewModal from '@/components/ImageProcessingPreviewModal';
 
 interface PhotoUploadProps {
   imageUrl?: string;
   imageData?: string;
   onChange: (url: string | undefined) => void;
+  onFileSelected?: (file: File) => void;
+  onAdjust?: () => void;
+  needsCrop?: boolean;
   label?: string;
-  /** Run background removal and enhance on upload (wardrobe items) */
+  cutoutPending?: boolean;
+  /** @deprecated processing is always automatic and non-blocking */
   enableSmartProcessing?: boolean;
 }
 
@@ -17,32 +20,19 @@ export default function PhotoUpload({
   imageUrl,
   imageData,
   onChange,
+  onFileSelected,
+  onAdjust,
+  needsCrop = false,
   label = 'Photo',
-  enableSmartProcessing = true,
+  cutoutPending = false,
 }: PhotoUploadProps) {
   const imageStorage = useImageStorage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [imageError, setImageError] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [reading, setReading] = useState(false);
 
   const preview = imageUrl ?? imageData;
-
-  const uploadDataUrl = async (dataUrl: string) => {
-    setUploading(true);
-    try {
-      const toStore = dataUrl.startsWith('data:image/png')
-        ? dataUrl
-        : await resizeImage(dataUrl, 1024);
-      const stored = await imageStorage.upload(toStore);
-      onChange(stored.url);
-    } catch {
-      setImageError('Could not save the image');
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -56,28 +46,23 @@ export default function PhotoUpload({
       return;
     }
     setImageError('');
-
-    if (enableSmartProcessing) {
-      setPendingFile(file);
-    } else {
-      try {
-        setUploading(true);
-        const resized = await resizeImage(file, 1024);
-        const stored = await imageStorage.upload(resized);
-        onChange(stored.url);
-      } catch {
-        setImageError('Could not save the image');
-      } finally {
-        setUploading(false);
+    setReading(true);
+    try {
+      if (onFileSelected) {
+        onFileSelected(file);
+        return;
       }
+      const previewUrl = URL.createObjectURL(file);
+      onChange(previewUrl);
+      const dataUrl = await blobToDataUrl(file);
+      const stored = await imageStorage.upload(dataUrl);
+      onChange(stored.url);
+    } catch {
+      setImageError('Could not save the image');
+    } finally {
+      setReading(false);
+      e.target.value = '';
     }
-    e.target.value = '';
-  };
-
-  const handleProcessingConfirm = async (dataUrl: string) => {
-    setPendingFile(null);
-    if (!dataUrl) return;
-    await uploadDataUrl(dataUrl);
   };
 
   return (
@@ -85,17 +70,27 @@ export default function PhotoUpload({
       <label className="block text-xs font-medium text-ink-300 mb-1.5 uppercase tracking-wider">{label}</label>
       <div className="flex items-center gap-3">
         <div
-          className="relative w-24 h-24 rounded-lg border border-ink-700 overflow-hidden flex items-center justify-center bg-ink-900/60 cursor-pointer group flex-shrink-0"
+          className="relative w-24 h-24 rounded-lg overflow-hidden flex items-center justify-center bg-ink-900/60 cursor-pointer group flex-shrink-0"
           onClick={(e) => {
             e.stopPropagation();
-            if (!uploading && !pendingFile) fileInputRef.current?.click();
+            if (!reading) fileInputRef.current?.click();
           }}
         >
-          {uploading || pendingFile ? (
+          {reading ? (
             <Loader2 className="w-6 h-6 text-wardrobe-accent-gold animate-spin" />
           ) : preview ? (
             <>
-              <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+              <img src={preview} alt="Preview" className="w-full h-full object-contain drop-shadow-md" />
+              {cutoutPending && (
+                <div className="absolute inset-x-0 bottom-0 bg-black/55 text-[9px] text-amber-100 py-0.5 text-center">
+                  Cutout…
+                </div>
+              )}
+              {needsCrop && !cutoutPending && (
+                <div className="absolute inset-x-0 bottom-0 bg-black/55 text-[9px] text-amber-100 py-0.5 text-center">
+                  Crop item
+                </div>
+              )}
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <Camera className="w-5 h-5 text-white" />
               </div>
@@ -112,7 +107,7 @@ export default function PhotoUpload({
           <div className="flex gap-2">
             <button
               type="button"
-              disabled={uploading || Boolean(pendingFile)}
+              disabled={reading}
               onClick={(e) => {
                 e.stopPropagation();
                 fileInputRef.current?.click();
@@ -124,7 +119,7 @@ export default function PhotoUpload({
             </button>
             <button
               type="button"
-              disabled={uploading || Boolean(pendingFile)}
+              disabled={reading}
               onClick={(e) => {
                 e.stopPropagation();
                 cameraInputRef.current?.click();
@@ -145,11 +140,19 @@ export default function PhotoUpload({
               Remove photo
             </button>
           )}
+          {preview && onAdjust && !cutoutPending && (
+            <button
+              type="button"
+              onClick={onAdjust}
+              className="flex items-center gap-1.5 text-xs text-wardrobe-accent-gold hover:text-amber-200 transition-colors"
+            >
+              {needsCrop ? 'Crop the item you want' : 'Crop / rotate / straighten'}
+            </button>
+          )}
           {imageError && <p className="text-xs text-red-400">{imageError}</p>}
           <p className="text-[10px] text-ink-600 flex items-center gap-1">
-            {enableSmartProcessing && <Sparkles className="w-3 h-3 text-wardrobe-accent-gold/70" />}
-            JPG or PNG, up to 10MB
-            {enableSmartProcessing ? ' · auto background removal' : ''}
+            <Sparkles className="w-3 h-3 text-wardrobe-accent-gold/70" />
+            JPG or PNG, up to 10MB · auto tags + cutout
           </p>
         </div>
       </div>
@@ -163,14 +166,6 @@ export default function PhotoUpload({
         onChange={handleFile}
         className="hidden"
       />
-
-      {pendingFile && (
-        <ImageProcessingPreviewModal
-          file={pendingFile}
-          onClose={() => setPendingFile(null)}
-          onConfirm={handleProcessingConfirm}
-        />
-      )}
     </div>
   );
 }

@@ -1,0 +1,618 @@
+openapi: 3.0.3
+info:
+  title: Almirobe API
+  version: 0.1.0
+  description: Almirobe REST API contract (v1)
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+paths:
+  /api/v1/auth/register:
+    post:
+      operationId: register
+      tags: [Auth]
+      summary: Register with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: Registered and authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokensResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/EmailExists'
+
+  /api/v1/auth/login:
+    post:
+      operationId: login
+      tags: [Auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokensResponse'
+        '401':
+          $ref: '#/components/responses/InvalidCredentials'
+
+  /api/v1/auth/google:
+    post:
+      operationId: loginWithGoogle
+      tags: [Auth]
+      summary: Login with Google ID token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleLoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokensResponse'
+        '401':
+          $ref: '#/components/responses/InvalidGoogleToken'
+        '503':
+          $ref: '#/components/responses/GoogleNotConfigured'
+
+  /api/v1/auth/refresh:
+    post:
+      operationId: refresh
+      tags: [Auth]
+      summary: Rotate refresh token and issue new access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: New tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokensResponse'
+        '401':
+          $ref: '#/components/responses/InvalidRefreshToken'
+
+  /api/v1/auth/logout:
+    post:
+      operationId: logout
+      tags: [Auth]
+      summary: Revoke refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '200':
+          description: Logged out
+
+  /api/v1/auth/me:
+    get:
+      operationId: getMe
+      tags: [Auth]
+      summary: Current user and default profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/catalog/tags:
+    get:
+      operationId: getCatalogTags
+      tags: [Catalog]
+      summary: Fixed tag vocabulary for chips and the vision worker
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Tag catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagCatalog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/media/upload-url:
+    post:
+      operationId: createMediaUploadUrl
+      tags: [Media]
+      summary: Presigned PUT URL for an original photo
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUploadUrlRequest'
+      responses:
+        '200':
+          description: Upload URL issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateUploadUrlResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/image-jobs:
+    post:
+      operationId: createImageJob
+      tags: [ImageJobs]
+      summary: Enqueue dual-track tagging and extraction for an uploaded original
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateImageJobRequest'
+      responses:
+        '202':
+          description: Job accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageJobResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/image-jobs/{jobId}:
+    get:
+      operationId: getImageJob
+      tags: [ImageJobs]
+      summary: Poll independent tags and cutout tracks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageJobResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/speech/transcribe:
+    post:
+      operationId: transcribeSpeech
+      tags: [Speech]
+      summary: Server STT fallback when browser Web Speech is unavailable
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SpeechTranscribeRequest'
+      responses:
+        '200':
+          description: Transcript
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeechTranscribeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '501':
+          $ref: '#/components/responses/SpeechUnavailable'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        maxLength: 128
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+          maxLength: 128
+        name:
+          type: string
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    GoogleLoginRequest:
+      type: object
+      required: [idToken]
+      properties:
+        idToken:
+          type: string
+
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    LogoutRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    UserDto:
+      type: object
+      required: [id, email, displayName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+          nullable: true
+
+    ProfileDto:
+      type: object
+      required: [id, label, displayName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        displayName:
+          type: string
+          nullable: true
+
+    AuthTokensResponse:
+      type: object
+      required: [accessToken, refreshToken, user, profile]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserDto'
+        profile:
+          $ref: '#/components/schemas/ProfileDto'
+
+    MeResponse:
+      type: object
+      required: [user, profile]
+      properties:
+        user:
+          $ref: '#/components/schemas/UserDto'
+        profile:
+          $ref: '#/components/schemas/ProfileDto'
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+
+    CreateUploadUrlRequest:
+      type: object
+      required: [contentType]
+      properties:
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+        fileName:
+          type: string
+
+    CreateUploadUrlResponse:
+      type: object
+      required: [uploadUrl, objectKey, method]
+      properties:
+        uploadUrl:
+          type: string
+          format: uri
+        objectKey:
+          type: string
+        method:
+          type: string
+          enum: [PUT]
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+
+    CreateImageJobRequest:
+      type: object
+      required: [objectKey]
+      properties:
+        objectKey:
+          type: string
+
+    TrackStatus:
+      type: string
+      enum: [queued, running, succeeded, failed]
+
+    SuggestedTag:
+      type: object
+      required: [value, confidence]
+      properties:
+        value:
+          type: string
+        confidence:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+
+    GarmentCandidate:
+      type: object
+      required: [id, label, confidence]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        confidence:
+          type: number
+          format: double
+        bbox:
+          type: array
+          items:
+            type: number
+          minItems: 4
+          maxItems: 4
+
+    ImageTags:
+      type: object
+      properties:
+        productType:
+          $ref: '#/components/schemas/SuggestedTag'
+        subtype:
+          $ref: '#/components/schemas/SuggestedTag'
+        color:
+          $ref: '#/components/schemas/SuggestedTag'
+        colorHex:
+          type: string
+        pattern:
+          $ref: '#/components/schemas/SuggestedTag'
+        occasion:
+          $ref: '#/components/schemas/SuggestedTag'
+        weather:
+          $ref: '#/components/schemas/SuggestedTag'
+        suggestedName:
+          type: string
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/GarmentCandidate'
+
+    ImageJobResponse:
+      type: object
+      required: [id, objectKey, tagsStatus, cutoutStatus, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        objectKey:
+          type: string
+        originalUrl:
+          type: string
+          format: uri
+          nullable: true
+        processedUrl:
+          type: string
+          format: uri
+          nullable: true
+        tagsStatus:
+          $ref: '#/components/schemas/TrackStatus'
+        cutoutStatus:
+          $ref: '#/components/schemas/TrackStatus'
+        tags:
+          $ref: '#/components/schemas/ImageTags'
+        errorMessage:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        needsReview:
+          type: boolean
+
+    TagOption:
+      type: object
+      required: [value, label]
+      properties:
+        value:
+          type: string
+        label:
+          type: string
+
+    TagCatalog:
+      type: object
+      required: [types, shirtSubtypes, pantSubtypes, shoeSubtypes, occasions, weather, autoSelectMinConfidence]
+      properties:
+        types:
+          type: array
+          items:
+            $ref: '#/components/schemas/TagOption'
+        shirtSubtypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TagOption'
+        pantSubtypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TagOption'
+        shoeSubtypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TagOption'
+        occasions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TagOption'
+        weather:
+          type: array
+          items:
+            $ref: '#/components/schemas/TagOption'
+        autoSelectMinConfidence:
+          type: number
+          format: double
+
+    SpeechTranscribeRequest:
+      type: object
+      required: [audio, locale]
+      properties:
+        audio:
+          type: string
+          format: binary
+        locale:
+          type: string
+          enum: [en-IN, hi-IN, bn-IN, kn-IN]
+
+    SpeechTranscribeResponse:
+      type: object
+      required: [text, locale]
+      properties:
+        text:
+          type: string
+        locale:
+          type: string
+
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    EmailExists:
+      description: Email already registered
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InvalidCredentials:
+      description: Invalid email or password
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InvalidGoogleToken:
+      description: Invalid Google ID token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    GoogleNotConfigured:
+      description: Google sign-in not configured on server
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InvalidRefreshToken:
+      description: Invalid or expired refresh token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Missing or invalid access token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    SpeechUnavailable:
+      description: Server-side speech fallback is not enabled
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

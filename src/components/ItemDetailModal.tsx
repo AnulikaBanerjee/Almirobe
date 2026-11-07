@@ -147,6 +147,15 @@ export default function ItemDetailModal({
             </div>
           )}
 
+          {item.isGift && (
+            <div className="rounded-lg border border-rose-800/40 bg-rose-900/15 p-3">
+              <p className="text-xs font-medium text-rose-200">Gift</p>
+              <p className="text-xs text-ink-300 mt-1">
+                {[item.giftFrom ? `From ${item.giftFrom}` : '', item.giftOccasion].filter(Boolean).join(' · ') || 'Gift details not set'}
+              </p>
+            </div>
+          )}
+
           {/* Color swatch + laundry status */}
           <div className="flex items-center gap-3">
             <div

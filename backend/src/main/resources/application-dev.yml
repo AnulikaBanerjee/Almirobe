@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:almirobe}
+    username: ${POSTGRES_USER:almirobe}
+    password: ${POSTGRES_PASSWORD:almirobe}
+  jpa:
+    show-sql: false
+
+logging:
+  level:
+    com.almirobe: DEBUG
+
+almirobe:
+  redis:
+    enabled: true
+  storage:
+    enabled: true
+  ghost-extract:
+    url: ${GHOST_EXTRACT_URL:http://localhost:8090/extract}

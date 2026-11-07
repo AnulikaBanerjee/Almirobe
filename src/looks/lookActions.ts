@@ -1,11 +1,14 @@
-import type { Look } from '@/types';
+import type { Look, LookPieceLayout } from '@/types';
 
 export interface LookDraftInput {
   primaryItemId: string;
   itemIds: string[];
   name: string;
   existingLook?: Look;
+  /** Pass a string (including '') to replace notes. Omit to keep the saved notes. */
   notes?: string;
+  /** Pass an array to replace the saved arrangement. Omit to keep it. */
+  layout?: LookPieceLayout[];
 }
 
 /** Ordered member ids for display — primary first, no duplicates. */
@@ -37,13 +40,18 @@ export function removeItemFromLooks(looks: Look[], deletedItemId: string): Look[
 export function buildLookFromDraft(input: LookDraftInput): Look {
   const itemIds = input.itemIds.filter((id) => id !== input.primaryItemId);
 
+  const notes =
+    input.notes !== undefined ? input.notes.trim() || undefined : input.existingLook?.notes;
+  const layout = input.layout !== undefined ? input.layout : input.existingLook?.layout;
+
   if (input.existingLook) {
     return {
       ...input.existingLook,
       name: input.name,
       primaryItemId: input.primaryItemId,
       itemIds,
-      notes: input.notes ?? input.existingLook.notes,
+      notes,
+      layout,
     };
   }
 
@@ -52,7 +60,8 @@ export function buildLookFromDraft(input: LookDraftInput): Look {
     name: input.name,
     primaryItemId: input.primaryItemId,
     itemIds,
-    notes: input.notes,
+    notes,
+    layout,
     createdAt: Date.now(),
   };
 }

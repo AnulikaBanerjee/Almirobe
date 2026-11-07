@@ -1,0 +1,97 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: almirobe
+      POSTGRES_USER: almirobe
+      POSTGRES_PASSWORD: almirobe
+    ports:
+      - "5432:5432"
+    volumes:
+      - almirobe_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U almirobe -d almirobe"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  minio:
+    image: quay.io/minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: almirobe
+      MINIO_ROOT_PASSWORD: almirobe-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - almirobe_minio_data:/data
+  minio-init:
+    image: quay.io/minio/mc:latest
+    depends_on:
+      - minio
+    volumes:
+      - ./docker/minio-cors.json:/cors.json:ro
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        sleep 3
+        mc alias set local http://minio:9000 almirobe almirobe-secret
+        mc mb -p local/almirobe
+        mc anonymous set download local/almirobe
+        mc cors set local/almirobe /cors.json
+        exit 0
+
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: almirobe
+      S3_SECRET_KEY: almirobe-secret
+      S3_BUCKET: almirobe
+      QUEUE_TAGS: "almirobe:jobs:tags"
+      QUEUE_EXTRACT: "almirobe:jobs:extract"
+      RESULT_PREFIX: "almirobe:job:"
+      U2NET_HOME: /models
+    volumes:
+      - almirobe_worker_models:/models
+    restart: unless-stopped
+
+  worker-ghost:
+    profiles: ["ghost"]
+    build:
+      context: .
+      dockerfile: worker/Dockerfile.ghost
+    ports:
+      - "8090:8090"
+    environment:
+      GHOST_SERVER_PORT: "8090"
+      GHOST_INPAINT_STEPS: "24"
+    volumes:
+      - almirobe_ghost_models:/root/.cache
+    restart: unless-stopped
+
+volumes:
+  almirobe_pg_data:
+  almirobe_minio_data:
+  almirobe_worker_models:
+  almirobe_ghost_models:

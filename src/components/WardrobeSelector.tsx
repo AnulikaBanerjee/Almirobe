@@ -20,7 +20,7 @@ export default function WardrobeSelector({ collections, activeId, onSelect, onAd
           const prevIdx = (idx - 1 + collections.length) % collections.length;
           onSelect(collections[prevIdx].id);
         }}
-        className="flex-shrink-0 w-9 h-9 rounded-full border border-ink-700 bg-ink-800/60 text-ink-400 hover:text-ink-100 hover:border-ink-600 hover:bg-ink-700/60 transition-all flex items-center justify-center"
+        className="flex-shrink-0 w-9 h-9 rounded-full border border-amber-200/80 bg-white/80 text-ink-500 hover:text-ink-800 hover:border-wardrobe-accent-gold/50 hover:bg-white transition-all flex items-center justify-center"
         aria-label="Previous wardrobe"
       >
         <ChevronLeft className="w-4 h-4" />
@@ -39,19 +39,19 @@ export default function WardrobeSelector({ collections, activeId, onSelect, onAd
               onClick={() => onSelect(collection.id)}
               className={`group flex items-center gap-2.5 px-4 py-2.5 rounded-xl border transition-all whitespace-nowrap ${
                 isActive
-                  ? 'border-wardrobe-accent-gold/50 bg-gradient-to-b from-wardrobe-accent-gold/15 to-wardrobe-accent-gold/5 shadow-lg shadow-wardrobe-accent-gold/10'
-                  : 'border-ink-700/50 bg-ink-800/40 hover:border-ink-600 hover:bg-ink-800/70'
+                  ? 'border-wardrobe-accent-gold/60 bg-white shadow-lg shadow-wardrobe-accent-gold/15'
+                  : 'border-amber-200/70 bg-white/50 hover:border-wardrobe-accent-gold/40 hover:bg-white'
               }`}
             >
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
                 isActive
                   ? 'bg-gradient-to-br from-wardrobe-accent-gold to-amber-700 text-ink-900'
-                  : 'bg-ink-700/50 text-ink-400 group-hover:text-ink-200'
+                  : 'bg-amber-50 text-ink-400 group-hover:text-ink-600'
               }`}>
                 <Icon className="w-4 h-4" />
               </div>
               <div className="text-left">
-                <p className={`text-sm font-medium leading-tight ${isActive ? 'text-ink-50' : 'text-ink-300'}`}>
+                <p className={`text-sm font-medium leading-tight ${isActive ? 'text-ink-800' : 'text-ink-600'}`}>
                   {collection.name}
                 </p>
                 <p className="text-[10px] text-ink-500 leading-tight">
@@ -65,7 +65,7 @@ export default function WardrobeSelector({ collections, activeId, onSelect, onAd
         {/* Add new wardrobe button */}
         <button
           onClick={onAddNew}
-          className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-dashed border-ink-600 text-ink-500 hover:text-wardrobe-accent-gold hover:border-wardrobe-accent-gold/40 transition-all whitespace-nowrap"
+          className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-dashed border-amber-300 text-ink-500 hover:text-amber-800 hover:border-wardrobe-accent-gold/60 bg-white/40 transition-all whitespace-nowrap"
         >
           <Plus className="w-4 h-4" />
           <span className="text-sm font-medium">New Wardrobe</span>
@@ -79,7 +79,7 @@ export default function WardrobeSelector({ collections, activeId, onSelect, onAd
           const nextIdx = (idx + 1) % collections.length;
           onSelect(collections[nextIdx].id);
         }}
-        className="flex-shrink-0 w-9 h-9 rounded-full border border-ink-700 bg-ink-800/60 text-ink-400 hover:text-ink-100 hover:border-ink-600 hover:bg-ink-700/60 transition-all flex items-center justify-center"
+        className="flex-shrink-0 w-9 h-9 rounded-full border border-amber-200/80 bg-white/80 text-ink-500 hover:text-ink-800 hover:border-wardrobe-accent-gold/50 hover:bg-white transition-all flex items-center justify-center"
         aria-label="Next wardrobe"
       >
         <ChevronRight className="w-4 h-4" />

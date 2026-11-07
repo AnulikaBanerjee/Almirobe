@@ -2,14 +2,17 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ArrowLeftRight,
+  BookOpen,
   ClipboardList,
   HeartHandshake,
   History,
+  Mail,
   Menu,
   Package,
   ShoppingBag,
   Truck,
   User,
+  Users,
   Warehouse,
 } from 'lucide-react';
 import type { AuthUser } from '@/auth';
@@ -37,10 +40,14 @@ const MENU_ITEMS: MenuEntry[] = [
   { id: 'account', label: 'Account Details', icon: User },
   { id: 'switch-profile', label: 'Switch Profile', icon: ArrowLeftRight },
   { id: 'account-history', label: 'Account History', icon: History },
+  { id: 'contact', label: 'Contact Us', icon: Mail },
   { id: 'purchase-report', label: 'Cloth Purchase Report', icon: ShoppingBag },
   { id: 'declutter-report', label: 'Declutter Report', icon: ClipboardList },
   { id: 'donation-box', label: 'Donation Box', icon: Package },
   { id: 'the-loft', label: 'The Loft', icon: Warehouse },
+  { id: 'articles', label: 'Articles', icon: BookOpen },
+  { id: 'suggestions', label: 'Suggestions', icon: ShoppingBag },
+  { id: 'plan-with-friends', label: 'Plan With Friends', icon: Users },
   { id: 'professional-help', label: 'Request Professional Help', icon: HeartHandshake, disabled: true, soon: true },
   { id: 'donation-pickup', label: 'Request Cloth Donation Pickup', icon: Truck, disabled: true, soon: true },
 ];
@@ -165,6 +172,7 @@ export default function AppMenu({ user, onNavigate, onSwitchProfile }: AppMenuPr
           profiles={profiles}
           onClose={() => setProfileOpen(false)}
           onSwitch={onSwitchProfile}
+          onProfilesChange={setProfiles}
         />
       )}
     </>

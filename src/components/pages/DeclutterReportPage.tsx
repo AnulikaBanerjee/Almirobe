@@ -8,7 +8,7 @@ interface DeclutterReportPageProps {
   collections: WardrobeCollection[];
   onBack: () => void;
   onKeep: (item: WardrobeItem) => void;
-  onThrowAway: (itemId: string) => void;
+  onDonate: (item: WardrobeItem) => void;
 }
 
 export default function DeclutterReportPage({
@@ -16,12 +16,12 @@ export default function DeclutterReportPage({
   collections,
   onBack,
   onKeep,
-  onThrowAway,
+  onDonate,
 }: DeclutterReportPageProps) {
   return (
     <AppPageShell
       title="Declutter Report"
-      subtitle="Review items you haven't worn in a while"
+      subtitle="Keep what you wear — donate the rest to your donation box"
       icon={ClipboardList}
       iconClassName="text-violet-400"
       onBack={onBack}
@@ -31,7 +31,7 @@ export default function DeclutterReportPage({
         items={items}
         collections={collections}
         onKeep={onKeep}
-        onThrowAway={onThrowAway}
+        onDonate={onDonate}
       />
     </AppPageShell>
   );

@@ -16,6 +16,7 @@ interface LoftPageProps {
   items: WardrobeItem[];
   collections: WardrobeCollection[];
   looks: Look[];
+  giftRecorderEnabled: boolean;
   onBack: () => void;
   onSaveBox: (box: LoftBox) => void;
   onDeleteBox: (boxId: string) => void;
@@ -39,6 +40,7 @@ export default function LoftPage({
   onMoveToLoft,
   onReturnFromLoft,
   looks,
+  giftRecorderEnabled,
   onEditItem,
   onDeleteItem,
   onToggleFavorite,
@@ -258,6 +260,7 @@ export default function LoftPage({
             collection={collections.find((c) => c.id === editItem.collectionId) ?? collections[0]}
             onClose={() => setEditItem(null)}
             onSave={(updated) => { onEditItem(updated); setEditItem(null); }}
+            giftRecorderEnabled={giftRecorderEnabled}
           />
         )}
       </div>

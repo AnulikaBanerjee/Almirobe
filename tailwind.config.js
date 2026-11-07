@@ -5,16 +5,20 @@ export default {
     extend: {
       fontFamily: {
         serif: ['"Cormorant Garamond"', 'serif'],
+        elite: ['"Playfair Display"', 'serif'],
         sans: ['Inter', 'sans-serif'],
       },
       colors: {
         wardrobe: {
           wood: {
-            light: '#d4a574',
-            mid: '#a87349',
-            dark: '#6b4423',
-            darker: '#4a2f18',
+            light: '#f7f4ee',
+            mid: '#ece7dc',
+            dark: '#c9b896',
+            darker: '#b08d4f',
           },
+          panel: '#f8f6f1',
+          frame: '#c4a35a',
+          interior: '#fffdf8',
           accent: {
             gold: '#c9a96e',
             rose: '#b76e79',
@@ -111,7 +115,11 @@ export default {
           '100%': { opacity: '1', transform: 'scale(1)' },
         },
         welcomeText: {
-          '0%': { opacity: '0', transform: 'translateY(30px)' },
+          '0%': { opacity: '0', transform: 'translateY(18px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        welcomeLetter: {
+          '0%': { opacity: '0', transform: 'translateY(12px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
         doorGlow: {
@@ -136,7 +144,8 @@ export default {
         'shimmer-gold': 'shimmerGold 3s linear infinite',
         'float-slow': 'floatSlow 4s ease-in-out infinite',
         'welcome-fade': 'welcomeFade 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards',
-        'welcome-text': 'welcomeText 0.6s ease-out forwards',
+        'welcome-text': 'welcomeText 1.1s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+        'welcome-letter': 'welcomeLetter 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards',
         'door-glow': 'doorGlow 3s ease-in-out infinite',
       },
     },

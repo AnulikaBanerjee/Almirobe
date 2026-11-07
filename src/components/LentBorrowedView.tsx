@@ -53,19 +53,22 @@ function LentItemCard({
 function AddLentModal({
   allItems,
   allCollections,
+  initialStatus,
   onClose,
   onSave,
 }: {
   allItems: WardrobeItem[];
   allCollections: WardrobeCollection[];
+  initialStatus: LentStatus;
   onClose: () => void;
   onSave: (itemId: string, status: LentStatus, party: string, notes: string) => void;
 }) {
   const available = allItems.filter((i) => !i.lentStatus);
   const [itemId, setItemId] = useState(available[0]?.id ?? '');
-  const [status, setStatus] = useState<LentStatus>('lent');
+  const [status, setStatus] = useState<LentStatus>(initialStatus);
   const [party, setParty] = useState('');
   const [notes, setNotes] = useState('');
+  const [partyError, setPartyError] = useState(false);
 
   const inputClass =
     'w-full bg-ink-900/80 border border-ink-700 rounded-lg px-3 py-2 text-sm text-ink-100 placeholder-ink-500 focus:outline-none focus:border-wardrobe-accent-gold/60 transition-all';
@@ -87,7 +90,11 @@ function AddLentModal({
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
-              if (!itemId || !party.trim()) return;
+              if (!itemId) return;
+              if (!party.trim()) {
+                setPartyError(true);
+                return;
+              }
               onSave(itemId, status, party.trim(), notes.trim());
               onClose();
             }}
@@ -113,7 +120,15 @@ function AddLentModal({
               <label className="text-xs text-ink-400 uppercase tracking-wider">
                 {status === 'lent' ? 'Lent to' : 'Borrowed from'}
               </label>
-              <input value={party} onChange={(e) => setParty(e.target.value)} className={`${inputClass} mt-1`} placeholder="Person's name" />
+              <input
+                value={party}
+                onChange={(e) => {
+                  setParty(e.target.value);
+                  if (partyError) setPartyError(false);
+                }}
+                className={`${inputClass} mt-1 ${partyError ? 'border-red-500/70 ring-1 ring-red-500/40' : ''}`}
+                placeholder="Person's name"
+              />
             </div>
             <div>
               <label className="text-xs text-ink-400 uppercase tracking-wider">Notes (optional)</label>
@@ -140,8 +155,10 @@ export default function LentBorrowedView({
   onBack,
 }: LentBorrowedViewProps) {
   const [showAdd, setShowAdd] = useState(false);
+  const [activeTab, setActiveTab] = useState<LentStatus>('lent');
   const lentItems = allItems.filter((i) => i.lentStatus === 'lent');
   const borrowedItems = allItems.filter((i) => i.lentStatus === 'borrowed');
+  const visibleItems = activeTab === 'lent' ? lentItems : borrowedItems;
 
   const handleSave = (itemId: string, status: LentStatus, party: string, notes: string) => {
     const item = allItems.find((i) => i.id === itemId);
@@ -184,54 +201,54 @@ export default function LentBorrowedView({
         </button>
       </div>
 
-      <div className="space-y-6">
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <HandCoins className="w-4 h-4 text-violet-400" />
-            <h3 className="text-sm font-medium text-ink-200">Lent Out ({lentItems.length})</h3>
-          </div>
-          {lentItems.length === 0 ? (
-            <p className="text-xs text-ink-600 py-4 text-center border border-dashed border-ink-700/50 rounded-xl">Nothing lent out</p>
-          ) : (
-            <div className="space-y-2">
-              {lentItems.map((item) => (
-                <LentItemCard
-                  key={item.id}
-                  item={item}
-                  collectionName={findCollectionName(allCollections, item.collectionId)}
-                  onClear={() => onClearLent(item.id)}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <ArrowRightLeft className="w-4 h-4 text-sky-400" />
-            <h3 className="text-sm font-medium text-ink-200">Borrowed ({borrowedItems.length})</h3>
-          </div>
-          {borrowedItems.length === 0 ? (
-            <p className="text-xs text-ink-600 py-4 text-center border border-dashed border-ink-700/50 rounded-xl">Nothing borrowed</p>
-          ) : (
-            <div className="space-y-2">
-              {borrowedItems.map((item) => (
-                <LentItemCard
-                  key={item.id}
-                  item={item}
-                  collectionName={findCollectionName(allCollections, item.collectionId)}
-                  onClear={() => onClearLent(item.id)}
-                />
-              ))}
-            </div>
-          )}
-        </section>
+      <div className="flex gap-2 mb-5">
+        {([
+          ['lent', 'Lent', lentItems.length, HandCoins] as const,
+          ['borrowed', 'Borrowed', borrowedItems.length, ArrowRightLeft] as const,
+        ]).map(([id, label, count, Icon]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setActiveTab(id)}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
+              activeTab === id
+                ? id === 'lent'
+                  ? 'border-violet-500/60 bg-violet-500/15 text-violet-200'
+                  : 'border-sky-500/60 bg-sky-500/15 text-sky-200'
+                : 'border-ink-700/60 bg-ink-800/40 text-ink-400 hover:text-ink-200 hover:border-ink-600'
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            {label}
+            <span className="text-xs opacity-70">({count})</span>
+          </button>
+        ))}
       </div>
+
+      <section>
+        {visibleItems.length === 0 ? (
+          <p className="text-xs text-ink-600 py-8 text-center border border-dashed border-ink-700/50 rounded-xl">
+            {activeTab === 'lent' ? 'Nothing lent out' : 'Nothing borrowed'}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {visibleItems.map((item) => (
+              <LentItemCard
+                key={item.id}
+                item={item}
+                collectionName={findCollectionName(allCollections, item.collectionId)}
+                onClear={() => onClearLent(item.id)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
 
       {showAdd && (
         <AddLentModal
           allItems={allItems}
           allCollections={allCollections}
+          initialStatus={activeTab}
           onClose={() => setShowAdd(false)}
           onSave={handleSave}
         />

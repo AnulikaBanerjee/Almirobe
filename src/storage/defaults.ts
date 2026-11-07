@@ -7,6 +7,7 @@ export function createDefaultWardrobeData(): WardrobeData {
     items: INITIAL_ITEMS,
     looks: [],
     loftBoxes: [],
+    gifts: [],
     activeCollectionId: INITIAL_COLLECTIONS[0]?.id ?? 'clothes',
   };
 }
